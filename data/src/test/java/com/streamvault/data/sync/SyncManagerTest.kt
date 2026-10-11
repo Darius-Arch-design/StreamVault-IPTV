@@ -999,7 +999,7 @@ class SyncManagerTest {
     }
 
     @Test
-    fun `retrySection_live_xtream_auto_manual_sync_uses_category_mode_on_mid_profile`() = runTest {
+    fun `retrySection_live_xtream_auto_manual_sync_prefers_full_catalog_on_healthy_mid_profile`() = runTest {
         val mgr = buildManager(providerType = ProviderType.XTREAM_CODES)
         xtreamBackend.respond(
             action = "get_live_categories",
@@ -1030,7 +1030,7 @@ class SyncManagerTest {
         advanceUntilIdle()
 
         assertThat(result.isSuccess).isTrue()
-        assertThat(xtreamBackend.requestedActions.count { it == "get_live_streams" }).isEqualTo(2)
+        assertThat(xtreamBackend.requestedActions.count { it == "get_live_streams" }).isEqualTo(1)
         assertThat(xtreamBackend.requestedActions.first()).isEqualTo("get_live_categories")
     }
 

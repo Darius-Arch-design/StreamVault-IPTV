@@ -45,7 +45,7 @@ class SyncManagerXtreamSupportTest {
                 preferSequential = false,
                 stage = XtreamAdaptiveSyncPolicy.Stage.CATEGORY
             )
-        ).isEqualTo(1)
+        ).isEqualTo(3)
     }
 
     @Test

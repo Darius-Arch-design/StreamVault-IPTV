@@ -48,7 +48,7 @@ class SyncManagerXtreamLiveStrategyTest {
     }
 
     @Test
-    fun `loadXtreamLiveFull retries legacy full decode when thin decode fails`() = runTest {
+    fun `loadXtreamLiveFull retries legacy full decode when thin decode fails`() = runBlocking {
         val requestCount = AtomicInteger(0)
         val httpService = OkHttpXtreamApiService(
             client = OkHttpClient.Builder()
@@ -129,7 +129,7 @@ class SyncManagerXtreamLiveStrategyTest {
     }
 
     @Test
-    fun `initial low tier live sync attempts streamed full catalog first`() = runTest {
+    fun `initial low tier live sync attempts streamed full catalog first`() = runBlocking {
         val requestCount = AtomicInteger(0)
         val httpService = OkHttpXtreamApiService(
             client = OkHttpClient.Builder()

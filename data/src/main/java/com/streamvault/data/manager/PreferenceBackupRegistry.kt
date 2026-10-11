@@ -46,7 +46,8 @@ internal object PreferenceBackupRegistry {
         "recording_wifi_only", "recording_padding_before_minutes", "recording_padding_after_minutes",
         "max_concurrent_streams"
     )
-    private val deviceBoundStorageKeys = setOf("download_tree_uri")
+    // Titlovi credentials are encrypted with a local Android Keystore key and must not be exported.
+    private val deviceBoundStorageKeys = setOf("download_tree_uri", "titlovi_username", "titlovi_password")
     private val runtimeStorageKeys = setOf(
         "parental_v2_migrated", "parental_pin", "live_variant_observations", "vod_variant_observations",
         "player_decoder_mode", "player_movie_http_protocol_mode", "last_speed_test_megabits",

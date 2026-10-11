@@ -265,7 +265,12 @@ class StalkerPortalStateStore @Inject constructor(
     ) {
         val state = dao.get(providerId) ?: return
         if (state.safeMetadataConcurrency == 1 && state.stressCooldownUntil in 1..now) {
-            dao.upsert(state.copy(safeMetadataConcurrency = 2, stressCooldownUntil = 0L))
+            dao.upsert(
+                state.copy(
+                    safeMetadataConcurrency = STALKER_HEALTHY_METADATA_CONCURRENCY,
+                    stressCooldownUntil = 0L
+                )
+            )
             StalkerTelemetry.capabilityChanged(providerId, "METADATA_CONCURRENCY", "RESTORED")
         }
     }

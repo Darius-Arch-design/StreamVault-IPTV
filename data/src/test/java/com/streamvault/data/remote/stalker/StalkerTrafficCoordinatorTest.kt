@@ -24,6 +24,7 @@ class StalkerTrafficCoordinatorTest {
         val playbackDelay = StalkerTrafficCoordinator.backgroundInterPageDelayMillis(providerId = 7L)
 
         assertThat(StalkerTrafficCoordinator.isPlaybackActive(7L)).isTrue()
+        assertThat(normalDelay).isEqualTo(0L)
         assertThat(playbackDelay).isGreaterThan(normalDelay)
     }
 

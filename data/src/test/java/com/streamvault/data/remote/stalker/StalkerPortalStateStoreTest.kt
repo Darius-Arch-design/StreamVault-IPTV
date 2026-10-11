@@ -85,7 +85,8 @@ class StalkerPortalStateStoreTest {
         assertThat(store.get(3L)?.safeMetadataConcurrency).isEqualTo(1)
 
         store.recordHealthyMetadataProbe(3L, now = 2_001L)
-        assertThat(store.get(3L)?.safeMetadataConcurrency).isEqualTo(2)
+        assertThat(store.get(3L)?.safeMetadataConcurrency)
+            .isEqualTo(STALKER_HEALTHY_METADATA_CONCURRENCY)
         assertThat(store.get(3L)?.stressCooldownUntil).isEqualTo(0L)
     }
 

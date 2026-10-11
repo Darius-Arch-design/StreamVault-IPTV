@@ -182,7 +182,9 @@ internal object StalkerTelemetry {
             append(" duration_ms=").append(durationMillis.coerceAtLeast(0L))
             append(" active=").append(active.coerceAtLeast(0))
             append(" queued=").append(queued.coerceAtLeast(0))
-            append(" concurrency_limit=").append(concurrencyLimit.coerceIn(1, 2))
+            append(" concurrency_limit=").append(
+                concurrencyLimit.coerceIn(1, STALKER_HEALTHY_METADATA_CONCURRENCY)
+            )
             append(" cooldown_remaining_ms=").append(cooldownRemaining)
             append(" outcome=").append(safeLabel(outcome))
         }

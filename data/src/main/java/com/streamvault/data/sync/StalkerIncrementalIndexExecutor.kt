@@ -22,7 +22,7 @@ import java.util.Locale
 import kotlin.math.min
 
 private const val STALKER_INCREMENTAL_WILDCARD_PAGE_SLICE_SIZE = 192
-private const val STALKER_INCREMENTAL_MAX_PARALLEL_CATEGORY_FETCHES = 2
+private const val STALKER_INCREMENTAL_MAX_PARALLEL_CATEGORY_FETCHES = 6
 private const val STALKER_INCREMENTAL_MAX_SECTION_RUN_MILLIS = 240_000L
 private const val TAG = "StalkerIncrementalIndexExecutor"
 

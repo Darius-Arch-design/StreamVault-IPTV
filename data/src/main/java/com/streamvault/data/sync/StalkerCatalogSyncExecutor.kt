@@ -45,7 +45,7 @@ import java.io.IOException
 import java.util.concurrent.atomic.AtomicLong
 
 private const val STALKER_EXECUTOR_TAG = "StalkerCatalogSync"
-private const val STALKER_MAX_PARALLEL_CATEGORY_FETCHES = 2
+private const val STALKER_MAX_PARALLEL_CATEGORY_FETCHES = 6
 private const val STALKER_BULK_LIVE_STALL_TIMEOUT_MILLIS = 30_000L
 private const val STALKER_BULK_LIVE_STALL_CHECK_INTERVAL_MILLIS = 1_000L
 private const val STALKER_BULK_LIVE_UNSUPPORTED_TTL_MILLIS = 6 * 60 * 60 * 1000L

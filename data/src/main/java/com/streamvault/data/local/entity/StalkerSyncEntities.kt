@@ -59,7 +59,7 @@ data class StalkerPortalStateEntity(
     @ColumnInfo(name = "movie_wildcard_supported") val movieWildcardSupported: Boolean? = null,
     @ColumnInfo(name = "series_wildcard_supported") val seriesWildcardSupported: Boolean? = null,
     @ColumnInfo(name = "epg_supported") val epgSupported: Boolean? = null,
-    @ColumnInfo(name = "safe_metadata_concurrency") val safeMetadataConcurrency: Int = 2,
+    @ColumnInfo(name = "safe_metadata_concurrency") val safeMetadataConcurrency: Int = 6,
     @ColumnInfo(name = "stress_cooldown_until") val stressCooldownUntil: Long = 0L,
     /** JSON map of SHA-256 endpoint/recipe keys to cooldown expiry; never stores raw values. */
     @ColumnInfo(name = "endpoint_health_json") val endpointHealthJson: String = "{}",

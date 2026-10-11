@@ -2,9 +2,11 @@ package com.streamvault.data.remote.stalker
 
 import com.google.common.truth.Truth.assertThat
 import com.streamvault.domain.model.StalkerRequestPriority
+import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -87,13 +89,13 @@ class StalkerRequestCoordinatorTest {
     }
 
     @Test
-    fun metadataConcurrencyIsCappedAtTwo() = runTest {
+    fun healthyMetadataConcurrencyIsCappedAtSix() = runTest {
         val coordinator = StalkerRequestCoordinator()
         val active = AtomicInteger()
         val peak = AtomicInteger()
         val release = CompletableDeferred<Unit>()
 
-        val jobs = (1..4).map { page ->
+        val jobs = (1..8).map { page ->
             async {
                 coordinator.execute(
                     9L,
@@ -108,11 +110,73 @@ class StalkerRequestCoordinatorTest {
             }
         }
         runCurrent()
-        assertThat(peak.get()).isEqualTo(2)
+        assertThat(peak.get()).isEqualTo(6)
 
         release.complete(Unit)
         advanceUntilIdle()
         jobs.forEach { it.await() }
-        assertThat(peak.get()).isEqualTo(2)
+        assertThat(peak.get()).isEqualTo(6)
     }
+
+    @Test
+    fun healthyBackgroundIndexRequestsRunConcurrently() = runTest {
+        val coordinator = StalkerRequestCoordinator()
+        val active = AtomicInteger()
+        val peak = AtomicInteger()
+        val release = CompletableDeferred<Unit>()
+
+        val jobs = (1..6).map { page ->
+            async {
+                coordinator.execute(
+                    10L,
+                    StalkerRequestPriority.BACKGROUND_INDEX,
+                    StalkerRequestDescriptor("MOVIE", "INDEX_PAGE", categoryKey = page.toString(), page = 1)
+                ) {
+                    val current = active.incrementAndGet()
+                    peak.updateAndGet { previous -> maxOf(previous, current) }
+                    release.await()
+                    active.decrementAndGet()
+                }
+            }
+        }
+        advanceTimeBy(200L)
+        runCurrent()
+        assertThat(peak.get()).isEqualTo(6)
+
+        release.complete(Unit)
+        advanceUntilIdle()
+        jobs.forEach { it.await() }
+    }
+
+    @Test
+    fun providerStressImmediatelyDropsMetadataConcurrencyToOne() = runTest {
+        val coordinator = StalkerRequestCoordinator()
+        coordinator.recordFailure(13L, SocketTimeoutException("slow portal"))
+        val active = AtomicInteger()
+        val peak = AtomicInteger()
+        val release = CompletableDeferred<Unit>()
+
+        val jobs = (1..3).map { page ->
+            async {
+                coordinator.execute(
+                    13L,
+                    StalkerRequestPriority.BACKGROUND_INDEX,
+                    StalkerRequestDescriptor("SERIES", "INDEX_PAGE", categoryKey = page.toString(), page = 1)
+                ) {
+                    val current = active.incrementAndGet()
+                    peak.updateAndGet { previous -> maxOf(previous, current) }
+                    release.await()
+                    active.decrementAndGet()
+                }
+            }
+        }
+        advanceTimeBy(200L)
+        runCurrent()
+        assertThat(peak.get()).isEqualTo(1)
+
+        release.complete(Unit)
+        advanceUntilIdle()
+        jobs.forEach { it.await() }
+    }
+
 }

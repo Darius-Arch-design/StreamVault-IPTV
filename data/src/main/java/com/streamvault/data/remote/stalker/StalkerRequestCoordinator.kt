@@ -16,6 +16,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
+internal const val STALKER_HEALTHY_METADATA_CONCURRENCY = 6
+
 data class StalkerRequestSnapshot(
     val active: Int,
     val queued: Int,
@@ -80,8 +82,7 @@ class StalkerRequestCoordinator @Inject constructor(
         val waiters = mutableListOf<Waiter>()
         val inFlight = mutableMapOf<String, CompletableDeferred<Any?>>()
         var active = 0
-        var activeBackground = 0
-        var safeMetadataConcurrency = NORMAL_METADATA_CONCURRENCY
+        var safeMetadataConcurrency = STALKER_HEALTHY_METADATA_CONCURRENCY
         var stressCooldownUntil = 0L
         var rateLimitCooldownUntil = 0L
         var rateLimitStrikes = 0
@@ -140,12 +141,9 @@ class StalkerRequestCoordinator @Inject constructor(
                     val first = state.waiters.minWithOrNull(
                         compareBy<Waiter>({ it.priority.ordinal }, { it.ticket })
                     )
-                    val backgroundAllowed = priority != StalkerRequestPriority.BACKGROUND_INDEX ||
-                        state.activeBackground == 0
-                    if (first == waiter && state.active < limit && backgroundAllowed) {
+                    if (first == waiter && state.active < limit) {
                         state.waiters.remove(waiter)
                         state.active += 1
-                        if (priority == StalkerRequestPriority.BACKGROUND_INDEX) state.activeBackground += 1
                         true
                     } else {
                         false
@@ -164,7 +162,7 @@ class StalkerRequestCoordinator @Inject constructor(
             val probeNow = System.currentTimeMillis()
             val restored = state.mutex.withLock {
                 if (state.safeMetadataConcurrency == 1 && state.stressCooldownUntil in 1..probeNow) {
-                    state.safeMetadataConcurrency = NORMAL_METADATA_CONCURRENCY
+                    state.safeMetadataConcurrency = STALKER_HEALTHY_METADATA_CONCURRENCY
                     state.stressCooldownUntil = 0L
                     true
                 } else {
@@ -197,9 +195,6 @@ class StalkerRequestCoordinator @Inject constructor(
                 state.waiters.remove(waiter)
                 if (acquired) {
                     state.active = (state.active - 1).coerceAtLeast(0)
-                    if (priority == StalkerRequestPriority.BACKGROUND_INDEX) {
-                        state.activeBackground = (state.activeBackground - 1).coerceAtLeast(0)
-                    }
                 }
                 if (state.inFlight[requestKey] === deferred) state.inFlight.remove(requestKey)
                 val limit = state.currentLimit(System.currentTimeMillis())
@@ -221,7 +216,8 @@ class StalkerRequestCoordinator @Inject constructor(
     }
 
     suspend fun snapshot(providerId: Long): StalkerRequestSnapshot {
-        val state = states[providerId] ?: return StalkerRequestSnapshot(0, 0, 2, 0L)
+        val state = states[providerId]
+            ?: return StalkerRequestSnapshot(0, 0, STALKER_HEALTHY_METADATA_CONCURRENCY, 0L)
         return state.mutex.withLock {
             val limit = state.currentLimit(System.currentTimeMillis())
             StalkerRequestSnapshot(state.active, state.waiters.size, limit, state.stressCooldownUntil)
@@ -394,8 +390,8 @@ class StalkerRequestCoordinator @Inject constructor(
         state.mutex.withLock {
             if (!state.persistedStateLoaded) {
                 state.safeMetadataConcurrency = persisted?.safeMetadataConcurrency
-                    ?.coerceIn(1, NORMAL_METADATA_CONCURRENCY)
-                    ?: NORMAL_METADATA_CONCURRENCY
+                    ?.coerceIn(1, STALKER_HEALTHY_METADATA_CONCURRENCY)
+                    ?: STALKER_HEALTHY_METADATA_CONCURRENCY
                 state.stressCooldownUntil = persisted?.stressCooldownUntil ?: 0L
                 state.rateLimitCooldownUntil = persisted
                     ?.let { portalStateStore?.rateLimitCooldownUntil(it) }
@@ -406,7 +402,11 @@ class StalkerRequestCoordinator @Inject constructor(
     }
 
     private fun ProviderState.currentLimit(now: Long): Int =
-        if (safeMetadataConcurrency <= 1 || stressCooldownUntil > now) 1 else NORMAL_METADATA_CONCURRENCY
+        if (safeMetadataConcurrency <= 1 || stressCooldownUntil > now) {
+            1
+        } else {
+            STALKER_HEALTHY_METADATA_CONCURRENCY
+        }
 
     private fun ProviderState.refillNetworkTokens(now: Long) {
         val elapsed = (now - lastNetworkRefillAt).coerceAtLeast(0L)
@@ -451,7 +451,6 @@ class StalkerRequestCoordinator @Inject constructor(
     }
 
     private companion object {
-        const val NORMAL_METADATA_CONCURRENCY = 2
         const val ADMISSION_POLL_MILLIS = 20L
         const val STRESS_COOLDOWN_MILLIS = 5L * 60L * 1000L
         const val DEFAULT_RATE_LIMIT_COOLDOWN_MILLIS = 15L * 60L * 1000L
@@ -460,11 +459,11 @@ class StalkerRequestCoordinator @Inject constructor(
         const val HALF_OPEN_FAILURE_COOLDOWN_MILLIS = 5L * 60L * 1000L
         const val HALF_OPEN_POLL_MILLIS = 1_000L
         const val MAX_RATE_LIMIT_STRIKES = 4
-        const val NETWORK_TOKEN_CAPACITY = 8.0
-        const val NETWORK_TOKEN_REFILL_MILLIS = 1_000L
+        const val NETWORK_TOKEN_CAPACITY = 12.0
+        const val NETWORK_TOKEN_REFILL_MILLIS = 100L
         const val INTERACTIVE_TOKEN_FLOOR = -2.0
-        const val BACKGROUND_REQUEST_INTERVAL_MILLIS = 5_000L
-        const val PREFETCH_REQUEST_INTERVAL_MILLIS = 500L
+        const val BACKGROUND_REQUEST_INTERVAL_MILLIS = 100L
+        const val PREFETCH_REQUEST_INTERVAL_MILLIS = 100L
         const val NETWORK_ADMISSION_POLL_MILLIS = 100L
         const val MAX_NETWORK_ADMISSION_SLEEP_MILLIS = 1_000L
     }

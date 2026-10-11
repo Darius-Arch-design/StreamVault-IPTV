@@ -3,7 +3,7 @@ package com.streamvault.data.remote.stalker
 import java.util.concurrent.ConcurrentHashMap
 
 internal object StalkerTrafficCoordinator {
-    private const val NORMAL_BACKGROUND_PAGE_DELAY_MILLIS = 1_000L
+    private const val NORMAL_BACKGROUND_PAGE_DELAY_MILLIS = 0L
     private const val PLAYBACK_BACKGROUND_PAGE_DELAY_MILLIS = 2_000L
     private val activePlaybackCountsByProvider = ConcurrentHashMap<Long, Int>()
 

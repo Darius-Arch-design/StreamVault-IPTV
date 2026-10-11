@@ -14,7 +14,7 @@ import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
-import okio.ByteString.Companion.toByteString
+import okio.Buffer
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -96,7 +96,7 @@ class TitloviExternalSubtitleRepositoryTest {
             "Show.S01E01.srt" to "1\n00:00:01,000 --> 00:00:02,000\nKrivi\n",
             "Show.S01E02.srt" to "1\n00:00:01,000 --> 00:00:02,000\nČćžšđ\n"
         )
-        server.enqueue(MockResponse().setBody(archive.toByteString()))
+        server.enqueue(MockResponse().setBody(Buffer().write(archive)))
         val repository = repository()
         val subtitle = com.streamvault.domain.model.ExternalSubtitle(
             id = "77",

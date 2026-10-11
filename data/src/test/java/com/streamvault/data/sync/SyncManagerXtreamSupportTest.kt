@@ -37,7 +37,7 @@ class SyncManagerXtreamSupportTest {
         }.exceptionOrNull()
 
         assertThat(failure).isInstanceOf(IOException::class.java)
-        assertThat(failure).hasMessageThat().contains("35 seconds")
+        assertThat(failure).hasMessageThat().contains("20 seconds")
         assertThat(
             adaptiveSyncPolicy.concurrencyFor(
                 providerId = providerId,
@@ -46,6 +46,18 @@ class SyncManagerXtreamSupportTest {
                 stage = XtreamAdaptiveSyncPolicy.Stage.CATEGORY
             )
         ).isEqualTo(1)
+    }
+
+    @Test
+    fun `healthy category sync can use eight concurrent requests`() {
+        assertThat(
+            adaptiveSyncPolicy.concurrencyFor(
+                providerId = 9L,
+                workloadSize = 60,
+                preferSequential = false,
+                stage = XtreamAdaptiveSyncPolicy.Stage.CATEGORY
+            )
+        ).isEqualTo(8)
     }
 
     @Test

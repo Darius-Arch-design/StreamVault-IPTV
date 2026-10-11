@@ -11,13 +11,13 @@ import kotlinx.coroutines.sync.withLock
 
 internal class XtreamAdaptiveSyncPolicy {
     private companion object {
-        const val MAX_SEGMENTED_CONCURRENCY = 4
+        const val MAX_SEGMENTED_CONCURRENCY = 8
     }
 
     enum class Stage(val timeoutMs: Long?) {
         LIGHTWEIGHT(15_000L),
-        CATEGORY(35_000L),
-        HEAVY(null)
+        CATEGORY(20_000L),
+        HEAVY(75_000L)
     }
 
     private data class ProviderHealth(
@@ -74,9 +74,9 @@ internal class XtreamAdaptiveSyncPolicy {
             Stage.CATEGORY -> when {
                 workloadSize <= 3 -> 1
                 workloadSize <= 8 -> 2
-                workloadSize <= 18 -> 2
-                workloadSize <= 36 -> 3
-                else -> 4
+                workloadSize <= 18 -> 4
+                workloadSize <= 36 -> 6
+                else -> 8
             }
             Stage.HEAVY -> 1
         }
@@ -204,10 +204,6 @@ internal class XtreamAdaptiveSyncPolicy {
             return 0L
         }
         val health = providerHealth[providerId] ?: ProviderHealth()
-        val baseSpacingMs = when (stage) {
-            Stage.CATEGORY -> 250L
-            else -> 0L
-        }
         val stressSpacingMs = when {
             health.stressLevel >= 4 -> 900L
             health.stressLevel >= 3 -> 650L
@@ -215,7 +211,7 @@ internal class XtreamAdaptiveSyncPolicy {
             health.stressLevel >= 1 -> 200L
             else -> 0L
         }
-        return baseSpacingMs + stressSpacingMs
+        return stressSpacingMs
     }
 
     private fun messageContains(error: Throwable, needle: String): Boolean =

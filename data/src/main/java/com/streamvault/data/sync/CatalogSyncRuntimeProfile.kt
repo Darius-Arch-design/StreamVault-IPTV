@@ -77,7 +77,7 @@ internal data class CatalogSyncRuntimeProfile(
                 DeviceSyncTier.LOW -> CatalogSyncRuntimeProfile(
                     tier = tier,
                     stageBatchSize = LOW_STAGE_BATCH_SIZE,
-                    maxCategoryConcurrency = 1,
+                    maxCategoryConcurrency = 2,
                     preferSegmentedLiveOnboarding = false,
                     deferBackgroundWorkOnLowMemory = true,
                     snapshot = snapshot
@@ -85,7 +85,7 @@ internal data class CatalogSyncRuntimeProfile(
                 DeviceSyncTier.MID -> CatalogSyncRuntimeProfile(
                     tier = tier,
                     stageBatchSize = MID_STAGE_BATCH_SIZE,
-                    maxCategoryConcurrency = 2,
+                    maxCategoryConcurrency = 4,
                     preferSegmentedLiveOnboarding = true,
                     deferBackgroundWorkOnLowMemory = snapshot.isCurrentlyLowOnMemory,
                     snapshot = snapshot

@@ -43,18 +43,9 @@ internal object XtreamLiveSyncPolicy {
         hiddenLiveCategoryIds: Set<Long>
     ): EffectiveXtreamLiveSyncMethod {
         if (hiddenLiveCategoryIds.isNotEmpty()) return EffectiveXtreamLiveSyncMethod.CATEGORY_BY_CATEGORY
-        if (runtimeProfile.tier == DeviceSyncTier.LOW) return EffectiveXtreamLiveSyncMethod.CATEGORY_BY_CATEGORY
         if (runtimeProfile.snapshot.isCurrentlyLowOnMemory) return EffectiveXtreamLiveSyncMethod.CATEGORY_BY_CATEGORY
         if (metadata.liveAvoidFullUntil > now) return EffectiveXtreamLiveSyncMethod.CATEGORY_BY_CATEGORY
         if (metadata.liveSequentialFailuresRemembered) return EffectiveXtreamLiveSyncMethod.CATEGORY_BY_CATEGORY
-        if (syncReason == XtreamLiveSyncReason.INITIAL_ONBOARDING && runtimeProfile.preferSegmentedLiveOnboarding) {
-            return EffectiveXtreamLiveSyncMethod.CATEGORY_BY_CATEGORY
-        }
-        return when (syncReason) {
-            XtreamLiveSyncReason.BACKGROUND_STALE,
-            XtreamLiveSyncReason.MANUAL_SETTINGS -> EffectiveXtreamLiveSyncMethod.CATEGORY_BY_CATEGORY
-            XtreamLiveSyncReason.INITIAL_ONBOARDING,
-            XtreamLiveSyncReason.FOREGROUND -> EffectiveXtreamLiveSyncMethod.STREAM_ALL
-        }
+        return EffectiveXtreamLiveSyncMethod.STREAM_ALL
     }
 }

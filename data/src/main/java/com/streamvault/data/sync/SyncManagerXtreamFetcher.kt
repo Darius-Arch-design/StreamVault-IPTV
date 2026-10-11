@@ -81,7 +81,7 @@ internal class SyncManagerXtreamFetcher(
 
         val elapsedMs = measureTimeMillis {
             when (val attempt = xtreamSupport.attemptNonCancellation {
-                xtreamSupport.retryXtreamCatalogTransient(provider.id) {
+                xtreamSupport.retryXtreamCatalogTransient(provider.id, maxAttempts = 2) {
                     xtreamSupport.executeXtreamRequest(provider.id, XtreamAdaptiveSyncPolicy.Stage.CATEGORY) {
                         val thinResult = runSuspendCatching {
                             streamThinRowsInBatches()

@@ -7,6 +7,7 @@ import com.streamvault.data.remote.dto.XtreamLiveStreamRow
 import com.streamvault.data.remote.dto.XtreamStream
 import com.streamvault.data.remote.xtream.OkHttpXtreamApiService
 import com.streamvault.data.remote.xtream.XtreamApiService
+import com.streamvault.data.remote.xtream.XtreamParsingException
 import com.streamvault.data.remote.xtream.XtreamProvider
 import com.streamvault.data.remote.xtream.XtreamUrlFactory
 import com.streamvault.domain.model.Channel
@@ -219,7 +220,7 @@ internal class SyncManagerXtreamLiveStrategy(
     private fun CatalogSyncPayload<Channel>.shouldRetryLegacyFullDecode(): Boolean {
         val result = catalogResult
         if ((result as? CatalogStrategyResult.Failure)?.error is LowMemoryCatalogAbortException) return false
-        return result is CatalogStrategyResult.Failure ||
+        return (result as? CatalogStrategyResult.Failure)?.error is XtreamParsingException ||
             (result is CatalogStrategyResult.EmptyValid && result.warnings.any { warning ->
                 warning.contains("raw items but none were usable", ignoreCase = true)
             })
@@ -304,7 +305,7 @@ internal class SyncManagerXtreamLiveStrategy(
 
         val fullChannelsElapsedMs = measureTimeMillis {
             when (val attempt = xtreamSupport.attemptNonCancellation {
-                xtreamSupport.retryXtreamCatalogTransient(provider.id) {
+                xtreamSupport.retryXtreamCatalogTransient(provider.id, maxAttempts = 1) {
                     xtreamSupport.executeXtreamRequest(provider.id, XtreamAdaptiveSyncPolicy.Stage.HEAVY) {
                         streamItems { item ->
                             rawBatch += item
@@ -493,7 +494,8 @@ internal class SyncManagerXtreamLiveStrategy(
             categoryOutcomes
         )
         var fallbackWarnings = executionPlan.warnings
-        if (concurrency > 1 && catalogStrategySupport.shouldRetryFailedCategories(
+        if (concurrency > 1 && failureCount <= MAX_FOREGROUND_CATEGORY_RETRIES &&
+            catalogStrategySupport.shouldRetryFailedCategories(
                 categories.size,
                 failureCount,
                 downgradeRecommended,
@@ -568,5 +570,9 @@ internal class SyncManagerXtreamLiveStrategy(
                 categories = null
             )
         }
+    }
+
+    private companion object {
+        const val MAX_FOREGROUND_CATEGORY_RETRIES = 2
     }
 }

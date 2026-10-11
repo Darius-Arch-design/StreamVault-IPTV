@@ -195,11 +195,16 @@ internal class SyncManagerXtreamSupport(
         return withRequestTimeout(seriesRequestTimeoutMillis, requestLabel, block)
     }
 
-    suspend fun <T> retryXtreamCatalogTransient(providerId: Long, block: suspend () -> T): T {
+    suspend fun <T> retryXtreamCatalogTransient(
+        providerId: Long,
+        maxAttempts: Int = 3,
+        block: suspend () -> T
+    ): T {
+        require(maxAttempts > 0) { "maxAttempts must be positive" }
         var attempt = 0
         var lastError: Exception? = null
 
-        while (attempt < 3) {
+        while (attempt < maxAttempts) {
             try {
                 return block()
             } catch (e: CancellationException) {
@@ -207,7 +212,7 @@ internal class SyncManagerXtreamSupport(
             } catch (t: Exception) {
                 lastError = t
                 attempt++
-                if (attempt >= 3 || !isXtreamCatalogRetryable(t, attempt)) {
+                if (attempt >= maxAttempts || !isXtreamCatalogRetryable(t, attempt)) {
                     throw t
                 }
                 val delayMs = adaptiveSyncPolicy.retryDelayFor(providerId, attempt)

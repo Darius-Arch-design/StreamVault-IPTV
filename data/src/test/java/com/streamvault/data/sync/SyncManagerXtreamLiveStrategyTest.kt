@@ -55,7 +55,7 @@ class SyncManagerXtreamLiveStrategyTest {
                 .addInterceptor { chain ->
                     val attempt = requestCount.incrementAndGet()
                     val body = when (attempt) {
-                        1, 2 -> """[{"stream_id":"""
+                        1 -> """[{"stream_id":"""
                         else -> """
                             [
                               {
@@ -125,7 +125,7 @@ class SyncManagerXtreamLiveStrategyTest {
         assertThat(stagedChannels.map { it.streamId }).containsExactly(777L)
         assertThat(stagedChannels.single().streamUrl).isEqualTo("xtream://42/live/777?ext=m3u8")
         assertThat(stagedChannels.single().streamUrl).doesNotContain("src=")
-        assertThat(requestCount.get()).isEqualTo(3)
+        assertThat(requestCount.get()).isEqualTo(2)
     }
 
     @Test
@@ -389,9 +389,9 @@ class SyncManagerXtreamLiveStrategyTest {
     assertThat(payload.stagedAcceptedCount).isEqualTo(1)
         assertThat(payload.strategyFeedback.attemptedFullCatalog).isTrue()
         assertThat(payload.strategyFeedback.fullCatalogUnsafe).isTrue()
-        assertThat(requestedCategoryIds.filter { it == null }).hasSize(4)
+        assertThat(requestedCategoryIds.filter { it == null }).hasSize(2)
         assertThat(requestedCategoryIds.last()).isEqualTo("12")
-        assertThat(requestCount.get()).isEqualTo(5)
+        assertThat(requestCount.get()).isEqualTo(3)
     }
 
     @Test

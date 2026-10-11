@@ -221,6 +221,7 @@ private fun resolvedSettingsCatalog(
         setting("playback.audio_decoder", SettingsCategory.PLAYBACK, SettingsPage.AUDIO, R.string.settings_audio_decoder_mode, "decoder"),
         setting("playback.audio_output", SettingsCategory.PLAYBACK, SettingsPage.AUDIO, R.string.settings_audio_output_mode, "passthrough"),
         setting("playback.audio_language", SettingsCategory.PLAYBACK, SettingsPage.AUDIO, R.string.settings_preferred_audio_language, "language"),
+        setting("playback.titlovi_account", SettingsCategory.PLAYBACK, SettingsPage.SUBTITLES, R.string.settings_titlovi_account, "automatic Croatian Bosnian Serbian subtitles"),
         setting("playback.live_translation", SettingsCategory.PLAYBACK, SettingsPage.SUBTITLES, R.string.settings_live_translation_enabled, "translate subtitles"),
         setting("playback.translation_endpoint", SettingsCategory.PLAYBACK, SettingsPage.SUBTITLES, R.string.settings_live_translation_endpoint, "translation server"),
         setting("playback.subtitle_size", SettingsCategory.PLAYBACK, SettingsPage.SUBTITLES, R.string.settings_subtitle_size, "captions"),

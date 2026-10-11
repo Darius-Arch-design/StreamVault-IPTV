@@ -10,5 +10,6 @@ data class ExternalSubtitle(
 )
 
 enum class ExternalSubtitleSource {
-    OPENSUBTITLES
+    OPENSUBTITLES,
+    TITLOVI
 }

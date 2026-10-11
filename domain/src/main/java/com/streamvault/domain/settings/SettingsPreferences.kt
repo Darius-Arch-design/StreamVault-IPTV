@@ -31,7 +31,7 @@ import com.streamvault.domain.model.TimeshiftBackendPreference
 import kotlinx.coroutines.flow.Flow
 
 /** Preference streams and commands consumed by settings; persistence remains in the data layer. */
-interface SettingsPreferences {
+interface SettingsPreferences : ExternalSubtitleCredentialsStore {
     val isIncognitoMode: Flow<Boolean>
 
     val useXtreamTextClassification: Flow<Boolean>

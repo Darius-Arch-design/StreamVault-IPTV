@@ -71,6 +71,7 @@ class PlayerViewModel @Inject constructor(
     internal val playerRecordingCoordinator: PlayerRecordingCoordinator,
     internal val playerCastCoordinator: PlayerCastCoordinator,
     internal val playerTranslationCoordinator: PlayerTranslationCoordinator,
+    internal val playerExternalSubtitleCoordinator: PlayerExternalSubtitleCoordinator,
     internal val playerContentResolver: PlayerContentResolver,
     internal val playerPreloadWindowCoordinator: PlayerPreloadWindowCoordinator,
     internal val playerPlaybackContextCoordinator: PlayerPlaybackContextCoordinator,
@@ -213,6 +214,7 @@ class PlayerViewModel @Inject constructor(
     internal var numericInputCommitJob: Job? = null
     internal var numericInputFeedbackJob: Job? = null
     internal var playerNoticeHideJob: Job? = null
+    internal var externalSubtitleJob: Job? = null
     internal var mutePersistJob: Job? = null
     internal var numericInputBuffer: String = ""
     internal val probePassedPlaybackKeys = mutableSetOf<String>()
@@ -1290,6 +1292,7 @@ class PlayerViewModel @Inject constructor(
         refreshLiveTranslationAvailability()
         startTokenRenewalMonitoring(success.streamInfo.expirationTime)
         maybeStartLiveTimeshift(success.streamInfo)
+        scheduleAutomaticExternalSubtitle(requestVersion, success.streamInfo.url)
         return true
     }
 
@@ -1372,6 +1375,7 @@ class PlayerViewModel @Inject constructor(
                         onStarted = { streamInfo ->
                             startTokenRenewalMonitoring(streamInfo.expirationTime)
                             maybeStartLiveTimeshift(streamInfo)
+                            scheduleAutomaticExternalSubtitle(requestVersion, streamInfo.url)
                         }
                     )) {
                     return@launch

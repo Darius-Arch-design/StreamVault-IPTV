@@ -194,6 +194,16 @@
     <string name="settings_subtitle_background">Subtitle Background</string>
     <string name="settings_subtitle_size">Subtitle Size</string>
     <string name="settings_subtitle_text_color">Subtitle Text Color</string>
+    <string name="settings_titlovi_account">Titlovi.com account</string>
+    <string name="settings_titlovi_account_value">Configure automatic Croatian, Bosnian, then Serbian subtitles</string>
+    <string name="settings_titlovi_account_subtitle">Enter your Titlovi.com account. Credentials are encrypted on this device. API access is free for 30 days after registration and later requires an eligible supporter account.</string>
+    <string name="settings_titlovi_username">Username</string>
+    <string name="settings_titlovi_password">Password</string>
+    <string name="settings_titlovi_remove_account">Remove account</string>
+    <string name="settings_titlovi_credentials_required">Enter both the Titlovi.com username and password.</string>
+    <string name="settings_titlovi_credentials_saved">Titlovi.com account saved.</string>
+    <string name="settings_titlovi_credentials_removed">Titlovi.com account removed.</string>
+    <string name="settings_titlovi_credentials_error">Could not securely save the Titlovi.com account.</string>
     <string name="settings_video_decoder_mode">Video Decoder Mode</string>
     <string name="settings_wifi_quality_cap">Wi-Fi Quality Preference</string>
     <string name="settings_zap_auto_revert">Auto-Return on Bad Channel</string>

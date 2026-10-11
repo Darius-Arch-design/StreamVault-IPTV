@@ -156,3 +156,61 @@ public fun SimpleTextValueDialog(
         }
     )
 }
+
+@Composable
+public fun TitloviCredentialsDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (username: String, password: String) -> Unit,
+    onClear: () -> Unit
+) {
+    var username by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    PremiumDialog(
+        title = stringResource(R.string.settings_titlovi_account),
+        subtitle = stringResource(R.string.settings_titlovi_account_subtitle),
+        onDismissRequest = onDismiss,
+        widthFraction = 0.58f,
+        content = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = stringResource(R.string.settings_titlovi_username),
+                    style = MaterialTheme.typography.labelLarge
+                )
+                EpgSourceTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    placeholder = stringResource(R.string.settings_titlovi_username)
+                )
+                Text(
+                    text = stringResource(R.string.settings_titlovi_password),
+                    style = MaterialTheme.typography.labelLarge
+                )
+                EpgSourceTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    placeholder = stringResource(R.string.settings_titlovi_password),
+                    isPassword = true
+                )
+            }
+        },
+        footer = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+            ) {
+                PremiumDialogFooterButton(
+                    label = stringResource(R.string.settings_titlovi_remove_account),
+                    onClick = onClear
+                )
+                PremiumDialogFooterButton(
+                    label = stringResource(R.string.settings_cancel),
+                    onClick = onDismiss
+                )
+                PremiumDialogActionButton(
+                    label = stringResource(R.string.settings_save),
+                    onClick = { onConfirm(username.trim(), password) }
+                )
+            }
+        }
+    )
+}

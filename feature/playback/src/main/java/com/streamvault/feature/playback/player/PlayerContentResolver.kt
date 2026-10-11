@@ -63,6 +63,9 @@ class PlayerContentResolver @Inject constructor(
     internal suspend fun getSeriesDetails(providerId: Long, seriesId: Long): Result<Series> =
         seriesRepository.getSeriesDetails(providerId, seriesId)
 
+    internal suspend fun getSeriesById(seriesId: Long): Series? =
+        seriesRepository.getSeriesById(seriesId)
+
     internal suspend fun getEpisodeById(episodeId: Long): Episode? =
         seriesRepository.getEpisodeById(episodeId)
 }

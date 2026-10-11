@@ -825,6 +825,25 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setTitloviCredentials(username: String, password: String) {
+        viewModelScope.launch {
+            try {
+                preferencesRepository.setTitloviCredentials(username, password)
+                showUserMessage(appContext.getString(R.string.settings_titlovi_credentials_saved))
+            } catch (error: Throwable) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                showUserMessage(appContext.getString(R.string.settings_titlovi_credentials_error))
+            }
+        }
+    }
+
+    fun clearTitloviCredentials() {
+        viewModelScope.launch {
+            preferencesRepository.clearTitloviCredentials()
+            showUserMessage(appContext.getString(R.string.settings_titlovi_credentials_removed))
+        }
+    }
+
     fun setPlayerTimeshiftDepthMinutes(minutes: Int) {
         viewModelScope.launch {
             preferencesRepository.setPlayerTimeshiftDepthMinutes(minutes)

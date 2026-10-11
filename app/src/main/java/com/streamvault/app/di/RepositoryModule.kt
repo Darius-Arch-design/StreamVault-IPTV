@@ -34,6 +34,7 @@ import com.streamvault.domain.provider.ProviderSourceRegistry
 import com.streamvault.domain.provider.PlayerPlaybackResolver
 import com.streamvault.domain.settings.PlayerPreferences
 import com.streamvault.domain.settings.SettingsPreferences
+import com.streamvault.domain.settings.ExternalSubtitleCredentialsStore
 import com.streamvault.app.playback.AppPlayerPlaybackResolver
 import com.streamvault.app.plugins.StreamVaultPluginManager
 import dagger.Binds
@@ -98,6 +99,11 @@ abstract class RepositoryModule {
     abstract fun bindExternalRatingsRepository(impl: ExternalRatingsRepositoryImpl): ExternalRatingsRepository
 
     @Binds @Singleton
+    abstract fun bindExternalSubtitleRepository(
+        impl: TitloviExternalSubtitleRepository
+    ): ExternalSubtitleRepository
+
+    @Binds @Singleton
     abstract fun bindSyncMetadataRepository(impl: SyncMetadataRepositoryImpl): SyncMetadataRepository
 
     @Binds @Singleton
@@ -129,6 +135,11 @@ abstract class RepositoryModule {
 
     @Binds @Singleton
     abstract fun bindSettingsPreferences(impl: PreferencesRepository): SettingsPreferences
+
+    @Binds @Singleton
+    abstract fun bindExternalSubtitleCredentialsStore(
+        impl: PreferencesRepository
+    ): ExternalSubtitleCredentialsStore
 
     @Binds @Singleton
     abstract fun bindPlayerPreferences(impl: PreferencesRepository): PlayerPreferences

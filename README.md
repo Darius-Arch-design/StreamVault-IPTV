@@ -1,15 +1,17 @@
 # StreamVault
 
 <p align="center">
-	<a href="https://github.com/Davidona/StreamVault-IPTV/releases/latest/download/StreamVault.apk"><img src="https://img.shields.io/badge/Download-StreamVault.apk-2ea44f?style=for-the-badge&logo=android" alt="Download StreamVault APK" /></a>
-	<a href="https://github.com/Davidona/StreamVault-IPTV/releases/latest"><img src="https://img.shields.io/github/v/release/Davidona/StreamVault-IPTV?display_name=tag&style=for-the-badge&color=0f766e" alt="Latest StreamVault release" /></a>
-	<a href="https://github.com/Davidona/StreamVault-IPTV/releases"><img src="https://img.shields.io/github/downloads/Davidona/StreamVault-IPTV/total?style=for-the-badge&color=8b5cf6" alt="Total Downloads" /></a>
+	<a href="https://github.com/Darius-Arch-design/StreamVault-IPTV/releases/latest/download/StreamVault.apk"><img src="https://img.shields.io/badge/Download-StreamVault.apk-2ea44f?style=for-the-badge&logo=android" alt="Download StreamVault APK" /></a>
+	<a href="https://github.com/Darius-Arch-design/StreamVault-IPTV/releases/latest"><img src="https://img.shields.io/github/v/release/Darius-Arch-design/StreamVault-IPTV?display_name=tag&style=for-the-badge&color=0f766e" alt="Latest StreamVault release" /></a>
+	<a href="https://github.com/Darius-Arch-design/StreamVault-IPTV/releases"><img src="https://img.shields.io/github/downloads/Darius-Arch-design/StreamVault-IPTV/total?style=for-the-badge&color=8b5cf6" alt="Total Downloads" /></a>
 	<a href="https://discord.gg/FrkumnnTz"><img src="https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the StreamVault Discord" /></a>
 	<a href="docs/CHANGELOG.md"><img src="https://img.shields.io/badge/Changelog-View-2563eb?style=for-the-badge" alt="View changelog" /></a>
-	<a href="https://github.com/Davidona/StreamVault-IPTV/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/Davidona/StreamVault-IPTV/release.yml?branch=master&style=for-the-badge&label=CI" alt="GitHub Actions status" /></a>
+	<a href="https://github.com/Darius-Arch-design/StreamVault-IPTV/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/Darius-Arch-design/StreamVault-IPTV/release.yml?branch=master&style=for-the-badge&label=CI" alt="GitHub Actions status" /></a>
 	<a href="https://ko-fi.com/davidona"><img src="https://img.shields.io/badge/Support-Ko--fi-ff5f5f?style=for-the-badge&logo=kofi" alt="Support on Ko-fi" /></a>
 	<a href="LICENSE"><img src="https://img.shields.io/badge/License-StreamVault_OSL-0284c7?style=for-the-badge" alt="License" /></a>
 </p>
+
+> This repository is a non-commercial derivative based on [StreamVault](https://github.com/Davidona/StreamVault-IPTV), originally developed by [David Nashash (Davidona)](https://github.com/Davidona). The original developer's [Ko-fi page](https://ko-fi.com/davidona) remains available for support.
 
 StreamVault is a TV-first IPTV player for Android TV built with Kotlin, Jetpack Compose, Room, Hilt, and Media3.
 

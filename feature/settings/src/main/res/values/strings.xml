@@ -685,6 +685,10 @@
     <string name="settings_build_verification_unavailable">Verification unavailable</string>
     <string name="settings_developed_by">Developed by</string>
     <string name="settings_developer_name">David Nashash</string>
+    <string name="settings_based_on">Derivative notice</string>
+    <string name="settings_based_on_value">Based on StreamVault by David Nashash</string>
+    <string name="settings_fork_source">Fork source code</string>
+    <string name="settings_fork_source_url">https://github.com/Darius-Arch-design/StreamVault-IPTV</string>
     <string name="settings_github">GitHub</string>
     <string name="settings_github_url">https://github.com/Davidona</string>
     <string name="settings_donate">Support on Ko-fi</string>

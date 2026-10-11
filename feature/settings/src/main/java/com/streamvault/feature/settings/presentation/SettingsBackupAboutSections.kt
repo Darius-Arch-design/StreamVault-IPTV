@@ -546,6 +546,13 @@ public fun LazyListScope.settingsAboutSection(
             SettingsRow(label = stringResource(R.string.settings_build), value = stringResource(R.string.settings_build_desc))
             SettingsRow(label = stringResource(R.string.settings_build_verification), value = buildVerificationLabel)
             SettingsRow(label = stringResource(R.string.settings_developed_by), value = stringResource(R.string.settings_developer_name))
+            SettingsRow(label = stringResource(R.string.settings_based_on), value = stringResource(R.string.settings_based_on_value))
+            ClickableSettingsRow(
+                label = stringResource(R.string.settings_fork_source),
+                value = stringResource(R.string.settings_fork_source_url),
+                onClick = { onOpenUri(context.getString(R.string.settings_fork_source_url)) }
+            ,
+                modifier = if (targetItemId == "about.fork_source") targetFocusModifier else Modifier,)
             ClickableSettingsRow(
                 label = stringResource(R.string.settings_github),
                 value = stringResource(R.string.settings_github_url),

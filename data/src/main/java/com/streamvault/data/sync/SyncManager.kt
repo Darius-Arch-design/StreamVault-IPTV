@@ -2375,7 +2375,7 @@ class SyncManager @Inject constructor(
     ): T = xtreamSupport.withSeriesRequestTimeout(requestLabel, block)
 
     private suspend fun <T> retryXtreamCatalogTransient(providerId: Long, block: suspend () -> T): T =
-        xtreamSupport.retryXtreamCatalogTransient(providerId, block)
+        xtreamSupport.retryXtreamCatalogTransient(providerId, block = block)
 
     companion object {
         private const val PROGRESS_INTERVAL = 5_000

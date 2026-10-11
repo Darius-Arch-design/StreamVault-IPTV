@@ -87,6 +87,7 @@ public fun LazyListScope.settingsPlaybackSection(
         val liveStreamFormatMode by viewModel.playerLiveStreamFormatMode.collectAsStateWithLifecycle()
         var showLiveStreamFormatDialog by rememberSaveable { mutableStateOf(false) }
         var showPlayerBackButtonVisibilityDialog by rememberSaveable { mutableStateOf(false) }
+        var showTitloviCredentialsDialog by rememberSaveable { mutableStateOf(false) }
         val backButtonVisibilityOptions = remember { PlayerBackButtonVisibility.entries }
         val liveStreamFormatOptions = remember {
             listOf(
@@ -207,6 +208,26 @@ public fun LazyListScope.settingsPlaybackSection(
                     )
                 }
             }
+        }
+
+        if (showTitloviCredentialsDialog) {
+            TitloviCredentialsDialog(
+                onDismiss = { showTitloviCredentialsDialog = false },
+                onConfirm = { username, password ->
+                    if (username.isBlank() || password.isBlank()) {
+                        viewModel.showUserMessage(
+                            context.getString(R.string.settings_titlovi_credentials_required)
+                        )
+                    } else {
+                        viewModel.setTitloviCredentials(username, password)
+                        showTitloviCredentialsDialog = false
+                    }
+                },
+                onClear = {
+                    viewModel.clearTitloviCredentials()
+                    showTitloviCredentialsDialog = false
+                }
+            )
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -376,6 +397,16 @@ public fun LazyListScope.settingsPlaybackSection(
                     modifier = if (targetItemId == "playback.ethernet_cap") targetFocusModifier else Modifier,)
             }
             if (page == null || page == SettingsPage.SUBTITLES) {
+                ClickableSettingsRow(
+                    label = stringResource(R.string.settings_titlovi_account),
+                    value = stringResource(R.string.settings_titlovi_account_value),
+                    onClick = { showTitloviCredentialsDialog = true },
+                    modifier = if (targetItemId == "playback.titlovi_account") {
+                        targetFocusModifier
+                    } else {
+                        Modifier
+                    }
+                )
                 SwitchSettingsRow(
                     label = stringResource(R.string.settings_live_translation_enabled),
                     value = stringResource(R.string.settings_live_translation_enabled_subtitle),

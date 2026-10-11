@@ -19,9 +19,12 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.streamvault.data.local.dao.ChannelPreferenceDao
 import com.streamvault.data.local.dao.SearchHistoryDao
+import com.streamvault.data.security.AndroidKeystoreCredentialCrypto
+import com.streamvault.data.security.CredentialCrypto
 import com.streamvault.domain.settings.DatabaseMaintenanceSnapshot
 import com.streamvault.domain.settings.PlayerPreferences
 import com.streamvault.domain.settings.SettingsPreferences
+import com.streamvault.domain.settings.TitloviCredentials
 import com.streamvault.domain.model.GroupedChannelLabelMode
 import com.streamvault.domain.model.AudioOutputPreference
 import com.streamvault.domain.model.ChannelNumberingMode
@@ -166,7 +169,8 @@ class PreferencesRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val channelPreferenceDao: ChannelPreferenceDao,
     private val searchHistoryDao: SearchHistoryDao,
-    private val corruptionRecovery: PreferencesCorruptionRecovery
+    private val corruptionRecovery: PreferencesCorruptionRecovery,
+    private val credentialCrypto: CredentialCrypto = AndroidKeystoreCredentialCrypto(context)
 ) : ParentalControlSessionStore, ParentalPinVerifier, PlayerPreferences {
     private val preferencesDataStore: DataStore<Preferences> by lazy {
         PreferenceDataStoreFactory.create(
@@ -272,6 +276,8 @@ class PreferencesRepository @Inject constructor(
         val PLAYER_SUBTITLE_TEXT_SCALE = stringPreferencesKey("player_subtitle_text_scale")
         val PLAYER_SUBTITLE_TEXT_COLOR = intPreferencesKey("player_subtitle_text_color")
         val PLAYER_SUBTITLE_BACKGROUND_COLOR = intPreferencesKey("player_subtitle_background_color")
+        val TITLOVI_USERNAME = stringPreferencesKey("titlovi_username")
+        val TITLOVI_PASSWORD = stringPreferencesKey("titlovi_password")
         val PLAYER_LIVE_TRANSLATION_ENABLED = booleanPreferencesKey("player_live_translation_enabled")
         val PLAYER_LIVE_TRANSLATION_ENDPOINT = stringPreferencesKey("player_live_translation_endpoint")
         val PLAYER_CONTROLS_TIMEOUT_SECONDS = intPreferencesKey("player_controls_timeout_seconds")
@@ -1297,6 +1303,42 @@ class PreferencesRepository @Inject constructor(
     override suspend fun setPlayerSubtitleBackgroundColor(colorArgb: Int) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.PLAYER_SUBTITLE_BACKGROUND_COLOR] = colorArgb
+        }
+    }
+
+    override suspend fun getTitloviCredentials(): TitloviCredentials? {
+        val preferences = context.dataStore.data.first()
+        val encryptedUsername = preferences[PreferencesKeys.TITLOVI_USERNAME]
+            ?.takeIf { it.isNotBlank() }
+            ?: return null
+        val encryptedPassword = preferences[PreferencesKeys.TITLOVI_PASSWORD]
+            ?.takeIf { it.isNotBlank() }
+            ?: return null
+        val username = credentialCrypto.decryptIfNeeded(encryptedUsername).trim()
+        val password = credentialCrypto.decryptIfNeeded(encryptedPassword)
+        return if (username.isBlank() || password.isBlank()) {
+            null
+        } else {
+            TitloviCredentials(username = username, password = password)
+        }
+    }
+
+    override suspend fun setTitloviCredentials(username: String, password: String) {
+        val normalizedUsername = username.trim()
+        require(normalizedUsername.isNotBlank()) { "Titlovi.com username is required" }
+        require(password.isNotBlank()) { "Titlovi.com password is required" }
+        val encryptedUsername = credentialCrypto.encryptIfNeeded(normalizedUsername)
+        val encryptedPassword = credentialCrypto.encryptIfNeeded(password)
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.TITLOVI_USERNAME] = encryptedUsername
+            preferences[PreferencesKeys.TITLOVI_PASSWORD] = encryptedPassword
+        }
+    }
+
+    override suspend fun clearTitloviCredentials() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(PreferencesKeys.TITLOVI_USERNAME)
+            preferences.remove(PreferencesKeys.TITLOVI_PASSWORD)
         }
     }
 

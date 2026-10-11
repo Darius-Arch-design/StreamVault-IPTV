@@ -41,6 +41,9 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
@@ -131,6 +134,7 @@ fun EpgSourceTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    isPassword: Boolean = false,
 ) {
     val settingsColors = SettingsDesignTokens.colors(com.streamvault.core.ui.design.AppColors.current)
     val isTelevisionDevice = com.streamvault.core.ui.device.rememberIsTelevisionDevice()
@@ -267,6 +271,11 @@ fun EpgSourceTextField(
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = settingsColors.searchText),
                 singleLine = true,
                 cursorBrush = SolidColor(settingsColors.cursor),
+                visualTransformation = if (isPassword) {
+                    PasswordVisualTransformation()
+                } else {
+                    VisualTransformation.None
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(inputFocusRequester)
@@ -316,7 +325,10 @@ fun EpgSourceTextField(
                             keyboardController?.hide()
                         }
                     },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
+                    imeAction = ImeAction.Done
+                ),
                 keyboardActions = KeyboardActions(onDone = { dismissInput() }),
                 readOnly = isTelevisionDevice && !acceptsInput
             )

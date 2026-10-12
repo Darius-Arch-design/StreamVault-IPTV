@@ -600,6 +600,13 @@ internal companion object {
         return when (rawResult) {
             is Result.Success -> {
                 val raw = rawResult.data
+                if (searchQuery != null) {
+                    bindCategoryRemoteIds(categoryType, raw.items.mapNotNull { record ->
+                        record.categoryId?.takeIf(String::isNotBlank)?.let { id ->
+                            StalkerCategoryRecord(id, record.categoryName ?: "Category $id")
+                        }
+                    }.distinctBy(StalkerCategoryRecord::id))
+                }
                 val movieRecords = raw.items.filterNot(StalkerItemRecord::isSeries)
                 val seriesRecords = raw.items.filter(StalkerItemRecord::isSeries)
                 bindRemoteIds(ContentType.MOVIE, movieRecords.map(StalkerItemRecord::id))
@@ -2448,7 +2455,19 @@ private fun playbackTransportChallengeFor(url: String): StalkerTransportChalleng
                 containerExtension = item.containerExtension,
                 playbackDescriptor = item.playbackDescriptor
             )
-        } ?: directStreamUrl
+        } ?: directStreamUrl ?: item.id.trim()
+            .takeIf { it.toLongOrNull()?.let { id -> id > 0L } == true }
+            ?.let { movieId ->
+                // get_ordered_list can omit cmd; resolve /media/<id>.mpg via create_link
+                // (and get_vod_files on nothing_to_play) only when the user presses Play.
+                StalkerUrlFactory.buildInternalStreamUrl(
+                    providerId = providerId,
+                    kind = StalkerStreamKind.MOVIE,
+                    itemId = numericId,
+                    cmd = "/media/$movieId.mpg",
+                    containerExtension = item.containerExtension
+                )
+            }
             ?: return null
         return Movie(
             id = 0L,

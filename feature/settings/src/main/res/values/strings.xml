@@ -196,6 +196,8 @@
     <string name="settings_subtitle_text_color">Subtitle Text Color</string>
     <string name="settings_titlovi_account">Titlovi.com account</string>
     <string name="settings_titlovi_account_value">Configure automatic Croatian, Bosnian, then Serbian subtitles</string>
+    <string name="settings_titlovi_account_configured">Account saved: %1$s</string>
+    <string name="settings_titlovi_password_saved_hint">The saved password is not displayed. Enter a password to update the account.</string>
     <string name="settings_titlovi_account_subtitle">Enter your Titlovi.com account. Credentials are encrypted on this device. API access is free for 30 days after registration and later requires an eligible supporter account.</string>
     <string name="settings_titlovi_username">Username</string>
     <string name="settings_titlovi_password">Password</string>

@@ -823,7 +823,8 @@ class Media3PlayerEngine @Inject constructor(
         )
         val merged = androidx.media3.exoplayer.source.MergingMediaSource(mainMediaSource, subtitleSource)
 
-        player.trackSelectionParameters = player.trackSelectionParameters.withExternalSubtitleEnabled()
+        trackController.selectExternalSubtitleForCurrentPlayback()
+        player.trackSelectionParameters = player.trackSelectionParameters.withExternalSubtitleEnabled(language)
         player.setMediaSource(merged, /* resetPosition= */ false)
         player.prepare()
         transition.resumePositionMs.takeIf { it > 0L }?.let(player::seekTo)

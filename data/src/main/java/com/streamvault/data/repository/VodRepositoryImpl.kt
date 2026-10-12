@@ -62,7 +62,7 @@ class VodRepositoryImpl @Inject constructor(
         val parentalLevel = filters.first
         val vodHiddenIds = filters.second
         val unified = filterUnifiedCategories(entities, parentalLevel, vodHiddenIds)
-        if (unified.isNotEmpty()) {
+        if (entities.isNotEmpty()) {
             flowOf(unified)
         } else {
             // A UNIFIED_VOD portal may still have SPLIT-era MOVIE rows until the next sync

@@ -22,6 +22,7 @@ import com.streamvault.domain.repository.FavoriteRepository
 import com.streamvault.domain.repository.MovieRepository
 import com.streamvault.domain.repository.PlaybackHistoryRepository
 import com.streamvault.domain.repository.ProviderRepository
+import com.streamvault.domain.repository.SearchRepository
 import com.streamvault.domain.repository.M3uClassificationRepository
 import com.streamvault.domain.usecase.ContinueWatchingResult
 import com.streamvault.domain.usecase.ContinueWatchingScope
@@ -78,6 +79,7 @@ enum class MovieLibraryLens {
 class MoviesViewModel @Inject constructor(
     private val providerRepository: ProviderRepository,
     private val movieRepository: MovieRepository,
+    private val searchRepository: SearchRepository,
     private val preferencesRepository: PreferencesRepository,
     private val playbackHistoryRepository: PlaybackHistoryRepository,
     private val favoriteRepository: FavoriteRepository,
@@ -195,6 +197,7 @@ class MoviesViewModel @Inject constructor(
                     }.combine(searchQueryForBrowse) { dependencies, query ->
                         MovieCatalogParams(
                             providerId = provider.id,
+                            providerType = provider.type,
                             allFavorites = dependencies.allFavorites,
                             customCategories = dependencies.customCategories,
                             providerCategories = dependencies.providerCategories,
@@ -252,7 +255,17 @@ class MoviesViewModel @Inject constructor(
                             }
                         } else {
                             flow {
-                                val searchResults = movieRepository.searchMovies(params.providerId, params.query).first()
+                                val local = movieRepository.searchMovies(params.providerId, params.query).first()
+                                val searchResults = if (local.isEmpty() && params.providerType == ProviderType.STALKER_PORTAL) {
+                                    searchRepository.searchContent(
+                                        providerId = params.providerId,
+                                        query = params.query,
+                                        includeLive = false,
+                                        includeMovies = true,
+                                        includeSeries = false,
+                                        maxResultsPerSection = 120
+                                    ).first().movies.filterNot { it.categoryId in params.hiddenCategoryIds }
+                                } else local
                                 emit(PreviewLoadResult(
                                     buildSearchCatalog(
                                         movies = searchResults,
@@ -1368,6 +1381,7 @@ class MoviesViewModel @Inject constructor(
 
 private data class MovieCatalogParams(
     val providerId: Long,
+    val providerType: ProviderType,
     val allFavorites: List<com.streamvault.domain.model.Favorite>,
     val customCategories: List<Category>,
     val providerCategories: List<Category>,

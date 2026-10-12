@@ -75,6 +75,17 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Run Stalker regression tests
+        run: |
+          ./gradlew --console=plain :domain:test --tests 'com.streamvault.domain.usecase.SearchContentTest'
+          ./gradlew --console=plain :data:testDebugUnitTest \
+            --tests 'com.streamvault.data.remote.stalker.StalkerProviderTest' \
+            --tests 'com.streamvault.data.remote.stalker.OkHttpStalkerApiServiceTest' \
+            --tests 'com.streamvault.data.repository.SearchRepositoryImplTest' \
+            --tests 'com.streamvault.data.repository.VodRepositoryImplTest'
+          ./gradlew --console=plain :feature:settings:testDebugUnitTest \
+            --tests 'com.streamvault.feature.settings.presentation.SettingsPreferencesContractTest'
+
       - name: Build beta APK
         run: ./gradlew --console=plain :app:assembleBeta
 

@@ -35,12 +35,18 @@ class PlayerTrackController(
     private var preferredWifiMaxVideoHeight: Int? = null
     private var preferredEthernetMaxVideoHeight: Int? = null
     private var vodTrackPreferences: VodTrackPreferences? = null
+    private var subtitleSelectedForCurrentPlayback = false
 
     fun resetSelections() {
         _availableAudioTracks.value = emptyList()
         _availableSubtitleTracks.value = emptyList()
         _availableVideoTracks.value = emptyList()
         selectedVideoTrackId = PLAYER_TRACK_AUTO_ID
+        subtitleSelectedForCurrentPlayback = false
+    }
+
+    fun selectExternalSubtitleForCurrentPlayback() {
+        subtitleSelectedForCurrentPlayback = true
     }
 
     fun applyInitialParameters(player: ExoPlayer, constrainResolutionForMultiView: Boolean) {
@@ -71,7 +77,11 @@ class PlayerTrackController(
         val preferences = vodTrackPreferences ?: return
         val builder = player.trackSelectionParameters
             .buildUpon()
-            .applyPreferredTextTrackPolicy(resolvePreferredTextTrackPolicy(preferences))
+            .apply {
+                if (!subtitleSelectedForCurrentPlayback) {
+                    applyPreferredTextTrackPolicy(resolvePreferredTextTrackPolicy(preferences))
+                }
+            }
 
         preferences.audio?.let { preference ->
             val selected = resolvePreferredPlayerTrack(preference, _availableAudioTracks.value)
@@ -88,7 +98,7 @@ class PlayerTrackController(
             }
         }
 
-        preferences.subtitle?.let { preference ->
+        preferences.subtitle?.takeUnless { subtitleSelectedForCurrentPlayback }?.let { preference ->
             val selected = resolvePreferredPlayerTrack(preference, _availableSubtitleTracks.value)
             builder.clearOverridesOfType(C.TRACK_TYPE_TEXT)
             if (preference.disabled || selected == null) {
@@ -223,9 +233,11 @@ class PlayerTrackController(
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
                 .clearOverridesOfType(C.TRACK_TYPE_TEXT)
                 .build()
+            subtitleSelectedForCurrentPlayback = true
             return
         }
         val override = findOverride(player.currentTracks, C.TRACK_TYPE_TEXT, trackId) ?: return
+        subtitleSelectedForCurrentPlayback = true
         player.trackSelectionParameters = player.trackSelectionParameters
             .buildUpon()
             .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)

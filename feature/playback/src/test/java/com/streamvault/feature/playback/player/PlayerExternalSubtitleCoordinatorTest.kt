@@ -12,6 +12,20 @@ import org.junit.Test
 class PlayerExternalSubtitleCoordinatorTest {
 
     @Test
+    fun `manual search lists results across preferred languages and downloads selected result`() = runTest {
+        val repository = FakeExternalSubtitleRepository()
+        val coordinator = PlayerExternalSubtitleCoordinator(repository)
+        val request = PlayerExternalSubtitleRequest(contentType = ContentType.MOVIE, title = "Example")
+
+        val results = coordinator.search(request).getOrThrow()
+
+        assertThat(repository.searchedLanguages).containsExactly("hr", "bs", "sr").inOrder()
+        assertThat(results.map { it.language }).containsExactly("bs")
+        assertThat(coordinator.download(results.single()).getOrThrow().file.exists()).isTrue()
+        assertThat(repository.downloadCount).isEqualTo(1)
+    }
+
+    @Test
     fun `prefers Croatian then falls back to Bosnian and caches the download`() = runTest {
         val repository = FakeExternalSubtitleRepository()
         val coordinator = PlayerExternalSubtitleCoordinator(repository)

@@ -141,6 +141,25 @@ class SearchContentTest {
         assertThat(result.movies).isEmpty()
         assertThat(result.isPartialResult).isTrue()
     }
+
+    @Test
+    fun waitsForPortalResultBeyondLocalIndexBudget() = runTest {
+        val useCase = SearchContent(
+            searchRepository = FakeSearchRepository(
+                timeoutMillis = 15_000L,
+                searchContentFlow = flow {
+                    delay(3_000L)
+                    emit(SearchRepositoryResult(movies = listOf(Movie(id = 2L, name = "Portal Movie"))))
+                }
+            ),
+            providerSyncStateReader = FakeProviderSyncStateReader()
+        )
+
+        val result = useCase(providerId = 99L, query = "movie", scope = SearchContentScope.MOVIES).first()
+
+        assertThat(result.movies.map { it.name }).containsExactly("Portal Movie")
+        assertThat(result.isPartialResult).isFalse()
+    }
 }
 
 private class FakeProviderSyncStateReader(
@@ -158,8 +177,11 @@ private class FakeSearchRepository(
     private val channelFlow: Flow<List<Channel>>? = null,
     private val movieFlow: Flow<List<Movie>>? = null,
     private val seriesFlow: Flow<List<Series>>? = null,
-    private val searchContentFlow: Flow<SearchRepositoryResult>? = null
+    private val searchContentFlow: Flow<SearchRepositoryResult>? = null,
+    private val timeoutMillis: Long = 2_500L
 ) : SearchRepository {
+    override suspend fun responseTimeoutMillis(providerId: Long): Long = timeoutMillis
+
     override fun searchContent(
         providerId: Long,
         query: String,

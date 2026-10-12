@@ -86,6 +86,8 @@ import com.streamvault.domain.model.Season
 import com.streamvault.player.PlayerError
 import com.streamvault.player.PlayerTrack
 import com.streamvault.player.TrackType
+import com.streamvault.domain.model.ExternalSubtitle
+import com.streamvault.feature.playback.player.TitloviSearchUiState
 import com.streamvault.player.AUDIO_VIDEO_OFFSET_MAX_MS
 import com.streamvault.player.AUDIO_VIDEO_OFFSET_MIN_MS
 import java.util.Locale
@@ -255,6 +257,10 @@ fun PlayerTrackSelectionDialog(
     trackType: TrackType?,
     audioTracks: List<PlayerTrack>,
     subtitleTracks: List<PlayerTrack>,
+    canSearchTitlovi: Boolean = false,
+    titloviSearchUiState: TitloviSearchUiState = TitloviSearchUiState(),
+    onSearchTitlovi: () -> Unit = {},
+    onDownloadTitlovi: (ExternalSubtitle) -> Unit = {},
     videoTracks: List<PlayerTrack>,
     liveTranslationAvailable: Boolean = false,
     liveTranslationActive: Boolean = false,
@@ -357,6 +363,39 @@ fun PlayerTrackSelectionDialog(
                                 Modifier
                             }
                         )
+                    }
+
+                    if (trackType == TrackType.TEXT && canSearchTitlovi) {
+                        item {
+                            TrackSelectionItem(
+                                name = stringResource(R.string.player_titlovi_search),
+                                isSelected = false,
+                                onClick = { if (!titloviSearchUiState.loading) onSearchTitlovi() }
+                            )
+                        }
+                        if (titloviSearchUiState.loading || titloviSearchUiState.downloading) {
+                            item {
+                                Text(
+                                    text = stringResource(
+                                        if (titloviSearchUiState.loading) R.string.player_titlovi_searching
+                                        else R.string.player_titlovi_downloading
+                                    ),
+                                    color = Color.White
+                                )
+                            }
+                        }
+                        titloviSearchUiState.message?.let { message ->
+                            item { Text(text = message, color = Color.White) }
+                        }
+                        items(titloviSearchUiState.results, key = { "titlovi-${it.language}-${it.id}" }) { subtitle ->
+                            TrackSelectionItem(
+                                name = "${subtitle.displayLanguage}: ${subtitle.releaseName}",
+                                isSelected = false,
+                                onClick = {
+                                    if (!titloviSearchUiState.downloading) onDownloadTitlovi(subtitle)
+                                }
+                            )
+                        }
                     }
 
                     if (trackType == TrackType.TEXT && liveTranslationAvailable) {

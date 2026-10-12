@@ -159,11 +159,12 @@ public fun SimpleTextValueDialog(
 
 @Composable
 public fun TitloviCredentialsDialog(
+    initialUsername: String?,
     onDismiss: () -> Unit,
     onConfirm: (username: String, password: String) -> Unit,
     onClear: () -> Unit
 ) {
-    var username by rememberSaveable { mutableStateOf("") }
+    var username by rememberSaveable(initialUsername) { mutableStateOf(initialUsername.orEmpty()) }
     var password by rememberSaveable { mutableStateOf("") }
     PremiumDialog(
         title = stringResource(R.string.settings_titlovi_account),
@@ -191,6 +192,12 @@ public fun TitloviCredentialsDialog(
                     placeholder = stringResource(R.string.settings_titlovi_password),
                     isPassword = true
                 )
+                if (initialUsername != null) {
+                    Text(
+                        text = stringResource(R.string.settings_titlovi_password_saved_hint),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
         },
         footer = {

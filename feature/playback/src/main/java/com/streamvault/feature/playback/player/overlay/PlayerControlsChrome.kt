@@ -1085,9 +1085,7 @@ private fun PlayerVodInfo(
             stringResource(if (isMuted) R.string.player_unmute else R.string.player_mute),
             onToggleMute
         ))
-        if (subtitleTrackCount > 0) {
-            add(PlayerActionSpec("subtitles", stringResource(R.string.player_subs), onOpenSubtitleTracks))
-        }
+        add(PlayerActionSpec("subtitles", stringResource(R.string.player_subs), onOpenSubtitleTracks))
         if (videoQualityCount > 0) {
             add(PlayerActionSpec("video_quality", stringResource(R.string.player_video_quality), onOpenVideoTracks))
         }

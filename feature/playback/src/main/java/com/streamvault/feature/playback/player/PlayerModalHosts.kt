@@ -93,8 +93,12 @@ internal fun PlayerControlsModalHost(
     }
 
     if (!isInPictureInPictureMode && showTrackSelection != null) {
+        LaunchedEffect(showTrackSelection) {
+            if (showTrackSelection == TrackType.TEXT) viewModel.resetTitloviSearch()
+        }
         val availableAudioTracks by viewModel.availableAudioTracks.collectAsStateWithLifecycle()
         val availableSubtitleTracks by viewModel.availableSubtitleTracks.collectAsStateWithLifecycle()
+        val titloviSearchUiState by viewModel.titloviSearchUiState.collectAsStateWithLifecycle()
         val availableVideoQualities by viewModel.availableVideoQualities.collectAsStateWithLifecycle()
         val liveTranslationAvailable by viewModel.liveTranslationAvailable.collectAsStateWithLifecycle()
         val liveTranslationActive by viewModel.liveTranslationActive.collectAsStateWithLifecycle()
@@ -102,6 +106,10 @@ internal fun PlayerControlsModalHost(
             trackType = showTrackSelection,
             audioTracks = availableAudioTracks,
             subtitleTracks = availableSubtitleTracks,
+            canSearchTitlovi = viewModel.currentContentType != com.streamvault.domain.model.ContentType.LIVE,
+            titloviSearchUiState = titloviSearchUiState,
+            onSearchTitlovi = viewModel::searchTitloviSubtitles,
+            onDownloadTitlovi = viewModel::downloadTitloviSubtitle,
             videoTracks = availableVideoQualities,
             liveTranslationAvailable = liveTranslationAvailable,
             liveTranslationActive = liveTranslationActive,

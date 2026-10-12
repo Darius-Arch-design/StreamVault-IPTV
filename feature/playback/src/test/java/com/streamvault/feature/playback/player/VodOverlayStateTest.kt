@@ -56,6 +56,7 @@ class VodOverlayStateTest {
         assertThat(state.isVod).isTrue()
         assertThat(state.showEpisodesAction).isTrue()
         assertThat(state.showChapterAction).isFalse()
+        assertThat(state.showSubtitleAction).isTrue()
     }
 
     @Test

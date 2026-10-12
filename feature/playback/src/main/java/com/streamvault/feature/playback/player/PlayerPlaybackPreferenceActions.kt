@@ -80,11 +80,12 @@ fun PlayerViewModel.selectAudioTrack(trackId: String) {
 }
 
 fun PlayerViewModel.selectSubtitleTrack(trackId: String?) {
-    playerEngine.selectSubtitleTrack(trackId)
     val selectedTrack = trackId?.let { id ->
         playerEngine.availableSubtitleTracks.value.firstOrNull { it.id == id }
     }
     if (trackId != null && selectedTrack == null) return
+    externalSubtitleJob?.cancel()
+    playerEngine.selectSubtitleTrack(trackId)
 
     val current = activeVodTrackPreferences ?: VodTrackPreferences()
     persistVodTrackPreferences(

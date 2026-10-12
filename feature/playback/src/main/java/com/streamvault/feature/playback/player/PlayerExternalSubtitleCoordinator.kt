@@ -29,6 +29,28 @@ class PlayerExternalSubtitleCoordinator @Inject constructor(
     private val loadMutex = Mutex()
     private val cache = LinkedHashMap<PlayerExternalSubtitleRequest, LoadedExternalSubtitle>()
 
+    internal suspend fun search(request: PlayerExternalSubtitleRequest): Result<List<ExternalSubtitle>> {
+        val results = mutableListOf<ExternalSubtitle>()
+        for (language in PREFERRED_LANGUAGES) {
+            val search = repository.search(
+                contentType = request.contentType,
+                title = request.title,
+                year = request.year,
+                tmdbId = request.tmdbId,
+                parentTmdbId = request.parentTmdbId,
+                seasonNumber = request.seasonNumber,
+                episodeNumber = request.episodeNumber,
+                language = language
+            )
+            if (search.isFailure) return Result.failure(search.exceptionOrNull()!!)
+            results += search.getOrDefault(emptyList()).take(10)
+        }
+        return Result.success(results)
+    }
+
+    internal suspend fun download(subtitle: ExternalSubtitle): Result<LoadedExternalSubtitle> =
+        repository.downloadToCache(subtitle).map { file -> LoadedExternalSubtitle(subtitle, file) }
+
     internal suspend fun loadBest(
         request: PlayerExternalSubtitleRequest
     ): LoadedExternalSubtitle? = loadMutex.withLock {

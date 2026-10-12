@@ -88,6 +88,7 @@ public fun LazyListScope.settingsPlaybackSection(
         var showLiveStreamFormatDialog by rememberSaveable { mutableStateOf(false) }
         var showPlayerBackButtonVisibilityDialog by rememberSaveable { mutableStateOf(false) }
         var showTitloviCredentialsDialog by rememberSaveable { mutableStateOf(false) }
+        val titloviAccountName by viewModel.titloviAccountName.collectAsStateWithLifecycle()
         val backButtonVisibilityOptions = remember { PlayerBackButtonVisibility.entries }
         val liveStreamFormatOptions = remember {
             listOf(
@@ -212,6 +213,7 @@ public fun LazyListScope.settingsPlaybackSection(
 
         if (showTitloviCredentialsDialog) {
             TitloviCredentialsDialog(
+                initialUsername = titloviAccountName,
                 onDismiss = { showTitloviCredentialsDialog = false },
                 onConfirm = { username, password ->
                     if (username.isBlank() || password.isBlank()) {
@@ -219,8 +221,9 @@ public fun LazyListScope.settingsPlaybackSection(
                             context.getString(R.string.settings_titlovi_credentials_required)
                         )
                     } else {
-                        viewModel.setTitloviCredentials(username, password)
-                        showTitloviCredentialsDialog = false
+                        viewModel.setTitloviCredentials(username, password) {
+                            showTitloviCredentialsDialog = false
+                        }
                     }
                 },
                 onClear = {
@@ -399,7 +402,9 @@ public fun LazyListScope.settingsPlaybackSection(
             if (page == null || page == SettingsPage.SUBTITLES) {
                 ClickableSettingsRow(
                     label = stringResource(R.string.settings_titlovi_account),
-                    value = stringResource(R.string.settings_titlovi_account_value),
+                    value = titloviAccountName?.let { name ->
+                        stringResource(R.string.settings_titlovi_account_configured, name)
+                    } ?: stringResource(R.string.settings_titlovi_account_value),
                     onClick = { showTitloviCredentialsDialog = true },
                     modifier = if (targetItemId == "playback.titlovi_account") {
                         targetFocusModifier

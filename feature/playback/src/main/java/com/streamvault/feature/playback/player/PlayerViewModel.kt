@@ -215,6 +215,7 @@ class PlayerViewModel @Inject constructor(
     internal var numericInputFeedbackJob: Job? = null
     internal var playerNoticeHideJob: Job? = null
     internal var externalSubtitleJob: Job? = null
+    internal val titloviSearchUiState = MutableStateFlow(TitloviSearchUiState())
     internal var mutePersistJob: Job? = null
     internal var numericInputBuffer: String = ""
     internal val probePassedPlaybackKeys = mutableSetOf<String>()

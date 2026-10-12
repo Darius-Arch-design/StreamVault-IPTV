@@ -212,6 +212,9 @@
     <string name="player_track_audio">Select Audio Track</string>
     <string name="player_track_live_translation" tools:ignore="MissingTranslation">Real-time translation</string>
     <string name="player_track_off">Off</string>
+    <string name="player_titlovi_search">Search Titlovi.com subtitles</string>
+    <string name="player_titlovi_searching">Searching Titlovi.com…</string>
+    <string name="player_titlovi_downloading">Downloading subtitle…</string>
     <string name="player_track_subs">Select Subtitles</string>
     <string name="player_try_alternate_stream">Try another path</string>
     <string name="player_type_channel_number">Type channel number</string>

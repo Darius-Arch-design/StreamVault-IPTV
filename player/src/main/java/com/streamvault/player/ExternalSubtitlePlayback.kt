@@ -29,10 +29,12 @@ internal fun buildExternalSubtitlePlaybackTransition(
     playWhenReady = playWhenReady
 )
 
-internal fun TrackSelectionParameters.withExternalSubtitleEnabled(): TrackSelectionParameters =
+internal fun TrackSelectionParameters.withExternalSubtitleEnabled(language: String): TrackSelectionParameters =
     buildUpon()
         .clearOverridesOfType(C.TRACK_TYPE_TEXT)
         .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+        .setPreferredTextLanguage(language)
+        .setSelectTextByDefault(true)
         .build()
 
 internal fun buildExternalSubtitleConfiguration(

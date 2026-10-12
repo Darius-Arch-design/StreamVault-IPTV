@@ -130,6 +130,9 @@ android {
             isShrinkResources = false
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
+            } else {
+                // Keep CI beta APK installable when release signing secrets are absent.
+                signingConfig = signingConfigs.getByName("debug")
             }
             matchingFallbacks += listOf("release")
         }

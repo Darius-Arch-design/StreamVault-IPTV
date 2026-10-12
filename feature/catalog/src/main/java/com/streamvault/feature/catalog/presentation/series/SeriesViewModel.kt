@@ -21,6 +21,7 @@ import com.streamvault.domain.model.Series
 import com.streamvault.domain.repository.FavoriteRepository
 import com.streamvault.domain.repository.PlaybackHistoryRepository
 import com.streamvault.domain.repository.ProviderRepository
+import com.streamvault.domain.repository.SearchRepository
 import com.streamvault.domain.repository.SeriesRepository
 import com.streamvault.domain.repository.M3uClassificationRepository
 import com.streamvault.domain.usecase.ContinueWatchingResult
@@ -78,6 +79,7 @@ enum class SeriesLibraryLens {
 class SeriesViewModel @Inject constructor(
     private val providerRepository: ProviderRepository,
     private val seriesRepository: SeriesRepository,
+    private val searchRepository: SearchRepository,
     private val preferencesRepository: PreferencesRepository,
     private val playbackHistoryRepository: PlaybackHistoryRepository,
     private val favoriteRepository: FavoriteRepository,
@@ -195,6 +197,7 @@ class SeriesViewModel @Inject constructor(
                     }.combine(searchQueryForBrowse) { dependencies, query ->
                         SeriesCatalogParams(
                             providerId = provider.id,
+                            providerType = provider.type,
                             allFavorites = dependencies.allFavorites,
                             customCategories = dependencies.customCategories,
                             providerCategories = dependencies.providerCategories,
@@ -248,7 +251,17 @@ class SeriesViewModel @Inject constructor(
                             }
                         } else {
                             flow {
-                                val searchResults = seriesRepository.searchSeries(params.providerId, params.query).first()
+                                val local = seriesRepository.searchSeries(params.providerId, params.query).first()
+                                val searchResults = if (local.isEmpty() && params.providerType == ProviderType.STALKER_PORTAL) {
+                                    searchRepository.searchContent(
+                                        providerId = params.providerId,
+                                        query = params.query,
+                                        includeLive = false,
+                                        includeMovies = false,
+                                        includeSeries = true,
+                                        maxResultsPerSection = 120
+                                    ).first().series.filterNot { it.categoryId in params.hiddenCategoryIds }
+                                } else local
                                 emit(PreviewLoadResult(
                                     buildSearchCatalog(
                                         series = searchResults,
@@ -1370,6 +1383,7 @@ class SeriesViewModel @Inject constructor(
 
 private data class SeriesCatalogParams(
     val providerId: Long,
+    val providerType: ProviderType,
     val allFavorites: List<com.streamvault.domain.model.Favorite>,
     val customCategories: List<Category>,
     val providerCategories: List<Category>,

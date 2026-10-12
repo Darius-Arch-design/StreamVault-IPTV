@@ -2013,6 +2013,23 @@ class OkHttpStalkerApiServiceTest {
     }
 
     @Test
+    fun getVodStreamsPage_reads_category_field_from_commandless_portal_results() = runTest {
+        val service = OkHttpStalkerApiService(
+            okHttpClient = fakeClient(
+                "get_ordered_list" to """{"js":{"total_items":1,"max_page_items":14,"data":[{"id":"568068","name":"Movie","category":"42","is_series":"0"}]}}"""
+            ),
+            json = Json { ignoreUnknownKeys = true }
+        )
+
+        val result = service.getVodStreamsPage(stalkerSession(), stalkerProfile(), null, page = 1, searchQuery = "Movie")
+
+        assertThat(result).isInstanceOf(Result.Success::class.java)
+        val item = (result as Result.Success).data.items.single()
+        assertThat(item.categoryId).isEqualTo("42")
+        assertThat(item.cmd).isNull()
+    }
+
+    @Test
     fun getVodStreamsPage_rejects_empty_page_before_advertised_end() = runTest {
         val service = OkHttpStalkerApiService(
             okHttpClient = fakeClient(

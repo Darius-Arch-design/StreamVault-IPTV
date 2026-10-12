@@ -14,6 +14,8 @@ data class SearchRepositoryResult(
 )
 
 interface SearchRepository {
+    suspend fun responseTimeoutMillis(providerId: Long): Long = 2_500L
+
     fun searchContent(
         providerId: Long,
         query: String,

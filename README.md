@@ -1,12 +1,12 @@
 # StreamVault
 
 <p align="center">
-	<a href="https://github.com/Darius-Arch-design/StreamVault-IPTV/releases/latest/download/StreamVault.apk"><img src="https://img.shields.io/badge/Download-StreamVault.apk-2ea44f?style=for-the-badge&logo=android" alt="Download StreamVault APK" /></a>
-	<a href="https://github.com/Darius-Arch-design/StreamVault-IPTV/releases/latest"><img src="https://img.shields.io/github/v/release/Darius-Arch-design/StreamVault-IPTV?display_name=tag&style=for-the-badge&color=0f766e" alt="Latest StreamVault release" /></a>
+	<a href="https://github.com/Darius-Arch-design/StreamVault-IPTV/releases/download/v1.0.19-beta.000002.01/StreamVault-beta.apk"><img src="https://img.shields.io/badge/Download-Beta%20APK-2ea44f?style=for-the-badge&logo=android" alt="Download StreamVault beta APK" /></a>
+	<a href="https://github.com/Darius-Arch-design/StreamVault-IPTV/releases/tag/v1.0.19-beta.000002.01"><img src="https://img.shields.io/badge/Beta-v1.0.19--beta.000002.01-0f766e?style=for-the-badge" alt="Current StreamVault beta release" /></a>
 	<a href="https://github.com/Darius-Arch-design/StreamVault-IPTV/releases"><img src="https://img.shields.io/github/downloads/Darius-Arch-design/StreamVault-IPTV/total?style=for-the-badge&color=8b5cf6" alt="Total Downloads" /></a>
 	<a href="https://discord.gg/FrkumnnTz"><img src="https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the StreamVault Discord" /></a>
 	<a href="docs/CHANGELOG.md"><img src="https://img.shields.io/badge/Changelog-View-2563eb?style=for-the-badge" alt="View changelog" /></a>
-	<a href="https://github.com/Darius-Arch-design/StreamVault-IPTV/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/Darius-Arch-design/StreamVault-IPTV/release.yml?branch=master&style=for-the-badge&label=CI" alt="GitHub Actions status" /></a>
+	<a href="https://github.com/Darius-Arch-design/StreamVault-IPTV/actions/workflows/master-test-apk.yml"><img src="https://img.shields.io/github/actions/workflow/status/Darius-Arch-design/StreamVault-IPTV/master-test-apk.yml?branch=master&style=for-the-badge&label=Master%20tests" alt="GitHub Actions status" /></a>
 	<a href="https://ko-fi.com/davidona"><img src="https://img.shields.io/badge/Support-Ko--fi-ff5f5f?style=for-the-badge&logo=kofi" alt="Support on Ko-fi" /></a>
 	<a href="LICENSE"><img src="https://img.shields.io/badge/License-StreamVault_OSL-0284c7?style=for-the-badge" alt="License" /></a>
 </p>
@@ -18,6 +18,15 @@ StreamVault is a TV-first IPTV player for Android TV built with Kotlin, Jetpack 
 It is designed for large playlists, remote-friendly browsing, fast provider switching, and a polished living-room playback experience. StreamVault supports `M3U` playlists, `Xtream Codes`, `Stalker Portal`, and `Jellyfin` providers, with dedicated flows for `Live TV`, `Movies`, and `Series`.
 
 Built for Android TV first, StreamVault focuses on the things generic IPTV apps usually get wrong: D-pad navigation, quick channel movement, large-library organization, and a player that still feels good to use from the couch. Phone and tablet installs are also supported, but the primary UX target is TV.
+
+## Current Beta: 1.0.19-beta.000002.01
+
+- Faster Xtream live-catalog synchronization uses bounded parallel requests and adapts to slow or rate-limited providers.
+- Stalker catalog metadata loads in parallel with adaptive throttling so portal browsing and background synchronization stay more responsive.
+- Movies and series episodes can automatically load subtitles from Titlovi.com, trying Croatian, then Bosnian, then Serbian. Add your Titlovi.com account under **Settings → Playback → Subtitles → Titlovi.com account**; availability depends on that service and your account access. Live TV is not covered by this integration.
+- This beta is built from `develop` and uses the separate `com.streamvault.app.beta` package for testing on Android TV.
+
+[Download the current beta APK](https://github.com/Darius-Arch-design/StreamVault-IPTV/releases/download/v1.0.19-beta.000002.01/StreamVault-beta.apk) · [Short link for Android TV](https://spoo.me/Vnm0pRj) · [View the beta release](https://github.com/Darius-Arch-design/StreamVault-IPTV/releases/tag/v1.0.19-beta.000002.01)
 
 ## Preview
 <p align="center">
@@ -67,6 +76,7 @@ Built for Android TV first, StreamVault focuses on the things generic IPTV apps 
 - `Jellyfin` media servers with direct library sync and TV-friendly Quick Connect support
 - `M3U` playlists from URLs plus local files
 - Separate onboarding and sync flows for live channels, movies, series, and guide data
+- Faster Xtream live synchronization and Stalker catalog loading with bounded parallel work and adaptive throttling
 - Fast switching between providers with provider-scoped settings
 - Combined M3U profiles for merging multiple M3U providers into a single Live TV source
 - QR-based provider pairing from a phone on the same LAN for faster TV setup
@@ -104,6 +114,7 @@ Built for Android TV first, StreamVault focuses on the things generic IPTV apps 
 - Global search across live TV, movies, and series
 - Multi-view for watching multiple live streams at once
 - Player controls for subtitles, audio tracks, aspect ratio, playback speed, video quality, Cast, and external-player handoff
+- Automatic Titlovi.com subtitles for movies and series episodes after configuring an eligible account in Playback → Subtitles
 
 ### Recording And Playback
 
@@ -164,10 +175,11 @@ Built for Android TV first, StreamVault focuses on the things generic IPTV apps 
 
 ## Download
 
-- [Download latest StreamVault.apk](https://github.com/Davidona/StreamVault-IPTV/releases/latest/download/StreamVault.apk)
-- The app can also detect and download newer releases in-app through GitHub Releases.
-- GitHub Actions still runs build and test validation on pushes and pull requests.
-- GitHub Releases are now published only when the workflow is started manually with `workflow_dispatch`, so versioned releases do not get created by mistake on every push.
+- [Download StreamVault beta 1.0.19-beta.000002.01 APK](https://github.com/Darius-Arch-design/StreamVault-IPTV/releases/download/v1.0.19-beta.000002.01/StreamVault-beta.apk) (signed, installable Android TV beta; separate from the stable app).
+- [Short APK link for Android TV](https://spoo.me/Vnm0pRj) (points to the same beta APK).
+- [Beta release and versioned APK](https://github.com/Darius-Arch-design/StreamVault-IPTV/releases/tag/v1.0.19-beta.000002.01).
+- Beta pre-releases are built and published from `develop`. The master branch has a separate test APK workflow; no stable release has been published from this repository yet.
+- Stable releases use the manual `workflow_dispatch` release workflow after its checks pass.
 
 ## Support
 

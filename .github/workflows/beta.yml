@@ -1,4 +1,5 @@
 name: Android Beta Build
+# Run Stalker regression tests before packaging each beta.
 
 on:
   push:

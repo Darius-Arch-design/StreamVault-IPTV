@@ -2,7 +2,70 @@ package com.streamvault.feature.playback.player
 
 import android.net.Uri
 import com.streamvault.domain.model.ContentType
+import com.streamvault.domain.model.ExternalSubtitle
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+data class TitloviSearchUiState(
+    val loading: Boolean = false,
+    val downloading: Boolean = false,
+    val results: List<ExternalSubtitle> = emptyList(),
+    val message: String? = null
+)
+
+internal fun PlayerViewModel.resetTitloviSearch() {
+    titloviSearchUiState.value = TitloviSearchUiState()
+}
+
+internal fun PlayerViewModel.searchTitloviSubtitles() {
+    val requestVersion = prepareRequestVersion
+    val scope = playbackSessionScope(requestVersion) ?: return
+    titloviSearchUiState.value = TitloviSearchUiState(loading = true)
+    scope.launch {
+        val request = resolveExternalSubtitleRequest()
+        if (request == null) {
+            titloviSearchUiState.value = TitloviSearchUiState(message = "Movie or episode details are unavailable.")
+            return@launch
+        }
+        val result = playerExternalSubtitleCoordinator.search(request)
+        if (!isActivePlaybackSession(requestVersion)) return@launch
+        titloviSearchUiState.value = if (result.isSuccess) {
+            val results = result.getOrDefault(emptyList())
+            TitloviSearchUiState(
+                results = results,
+                message = if (results.isEmpty()) "No subtitles found. Check your Titlovi.com account and try another title." else null
+            )
+        } else {
+            TitloviSearchUiState(message = "Titlovi.com search failed: ${result.exceptionOrNull()?.message.orEmpty().take(100)}")
+        }
+    }
+}
+
+internal fun PlayerViewModel.downloadTitloviSubtitle(subtitle: ExternalSubtitle) {
+    val requestVersion = prepareRequestVersion
+    val expectedPlaybackUrl = currentResolvedPlaybackUrl
+    val scope = playbackSessionScope(requestVersion) ?: return
+    externalSubtitleJob?.cancel()
+    titloviSearchUiState.update { it.copy(downloading = true, message = null) }
+    scope.launch {
+        val result = playerExternalSubtitleCoordinator.download(subtitle)
+        if (!isActivePlaybackSession(requestVersion) || currentResolvedPlaybackUrl != expectedPlaybackUrl) return@launch
+        val file = result.getOrNull()?.file
+        if (file == null) {
+            titloviSearchUiState.update { it.copy(downloading = false, message = "Subtitle download failed. Try another result.") }
+            return@launch
+        }
+        try {
+            playerEngine.addExternalSubtitle(Uri.fromFile(file), subtitle.language)
+            titloviSearchUiState.update { it.copy(downloading = false, message = "Subtitle downloaded and selected.") }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            titloviSearchUiState.update { it.copy(downloading = false, message = "Subtitle could not be played.") }
+        }
+    }
+}
 
 internal fun PlayerViewModel.scheduleAutomaticExternalSubtitle(
     requestVersion: Long,
@@ -25,7 +88,7 @@ internal fun PlayerViewModel.scheduleAutomaticExternalSubtitle(
     }
 }
 
-private suspend fun PlayerViewModel.resolveExternalSubtitleRequest(): PlayerExternalSubtitleRequest? =
+internal suspend fun PlayerViewModel.resolveExternalSubtitleRequest(): PlayerExternalSubtitleRequest? =
     when (currentContentType) {
         ContentType.MOVIE,
         ContentType.VOD -> {

@@ -124,6 +124,8 @@ class SettingsViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+    private val _titloviAccountName = MutableStateFlow<String?>(null)
+    val titloviAccountName: StateFlow<String?> = _titloviAccountName.asStateFlow()
     val playerLiveStreamFormatMode: StateFlow<LiveStreamFormatMode> =
         preferencesRepository.playerLiveStreamFormatMode.stateIn(
             scope = viewModelScope,
@@ -186,6 +188,11 @@ class SettingsViewModel @Inject constructor(
     )
 
     init {
+        viewModelScope.launch {
+            _titloviAccountName.value = runCatching {
+                preferencesRepository.getTitloviCredentials()?.username
+            }.getOrNull()
+        }
         refreshCrashReport()
         registerPreferenceObservers()
         registerXtreamIndexJobObserver()
@@ -825,11 +832,17 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setTitloviCredentials(username: String, password: String) {
+    fun setTitloviCredentials(username: String, password: String, onSaved: () -> Unit) {
         viewModelScope.launch {
             try {
                 preferencesRepository.setTitloviCredentials(username, password)
+                val saved = preferencesRepository.getTitloviCredentials()
+                check(saved?.username == username.trim() && saved.password == password) {
+                    "Titlovi.com credentials could not be verified after saving"
+                }
+                _titloviAccountName.value = saved.username
                 showUserMessage(appContext.getString(R.string.settings_titlovi_credentials_saved))
+                onSaved()
             } catch (error: Throwable) {
                 if (error is kotlinx.coroutines.CancellationException) throw error
                 showUserMessage(appContext.getString(R.string.settings_titlovi_credentials_error))
@@ -839,8 +852,14 @@ class SettingsViewModel @Inject constructor(
 
     fun clearTitloviCredentials() {
         viewModelScope.launch {
-            preferencesRepository.clearTitloviCredentials()
-            showUserMessage(appContext.getString(R.string.settings_titlovi_credentials_removed))
+            try {
+                preferencesRepository.clearTitloviCredentials()
+                _titloviAccountName.value = null
+                showUserMessage(appContext.getString(R.string.settings_titlovi_credentials_removed))
+            } catch (error: Throwable) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                showUserMessage(appContext.getString(R.string.settings_titlovi_credentials_error))
+            }
         }
     }
 

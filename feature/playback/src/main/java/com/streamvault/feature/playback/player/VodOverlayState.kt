@@ -48,7 +48,7 @@ internal fun buildVodOverlayState(
         nextChapterTargetMs = nextChapterTarget(visibleChapters, currentPositionMs),
         showChapterAction = isVod && visibleChapters.isNotEmpty() && !isCastConnected,
         showEpisodesAction = isVod && normalizedContentType == "SERIES_EPISODE" && showEpisodesAction,
-        showSubtitleAction = isVod && subtitleTrackCount > 0,
+        showSubtitleAction = isVod,
         showAudioAction = isVod && audioTrackCount > 0,
         showVideoQualityAction = isVod && videoQualityCount > 0,
         showAudioVideoSyncAction = isVod && audioVideoSyncEnabled && !isCastConnected,

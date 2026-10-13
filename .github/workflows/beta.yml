@@ -52,27 +52,27 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Prepare optional signing files
+      - name: Prepare stable beta signing files
         shell: bash
         env:
-          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          BETA_KEYSTORE_BASE64: ${{ secrets.BETA_KEYSTORE_BASE64 }}
+          BETA_STORE_PASSWORD: ${{ secrets.BETA_STORE_PASSWORD }}
+          BETA_KEY_ALIAS: ${{ secrets.BETA_KEY_ALIAS }}
+          BETA_KEY_PASSWORD: ${{ secrets.BETA_KEY_PASSWORD }}
         run: |
-          if [ -n "$RELEASE_KEYSTORE_BASE64" ] && [ -n "$RELEASE_STORE_PASSWORD" ] && [ -n "$RELEASE_KEY_ALIAS" ] && [ -n "$RELEASE_KEY_PASSWORD" ]; then
-            mkdir -p keystore
-            echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > keystore/release.jks
-            printf '%s\n' \
-              'storeFile=keystore/release.jks' \
-              "storePassword=$RELEASE_STORE_PASSWORD" \
-              "keyAlias=$RELEASE_KEY_ALIAS" \
-              "keyPassword=$RELEASE_KEY_PASSWORD" \
-              > keystore.properties
-            echo "Release signing files prepared for beta."
-          else
-            echo "No signing secrets configured. Building unsigned beta APK."
+          if [ -z "$BETA_KEYSTORE_BASE64" ] || [ -z "$BETA_STORE_PASSWORD" ] || [ -z "$BETA_KEY_ALIAS" ] || [ -z "$BETA_KEY_PASSWORD" ]; then
+            echo '::error::Stable beta signing secrets are missing. Refusing a disposable debug-signed APK that cannot update an installed beta.'
+            exit 1
           fi
+          mkdir -p keystore
+          printf '%s' "$BETA_KEYSTORE_BASE64" | base64 --decode > keystore/beta.jks
+          printf '%s\n' \
+            'storeFile=keystore/beta.jks' \
+            "storePassword=$BETA_STORE_PASSWORD" \
+            "keyAlias=$BETA_KEY_ALIAS" \
+            "keyPassword=$BETA_KEY_PASSWORD" \
+            > keystore.properties
+          keytool -list -keystore keystore/beta.jks -storepass "$BETA_STORE_PASSWORD" -alias "$BETA_KEY_ALIAS" > /dev/null
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew

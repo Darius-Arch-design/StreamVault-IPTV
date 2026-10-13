@@ -1,5 +1,6 @@
 name: Android Beta Build
 # Run Stalker regression tests before packaging each beta.
+# Beta Android TV validation build for Stalker search and category fixes.
 
 on:
   push:

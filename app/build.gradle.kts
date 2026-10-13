@@ -120,7 +120,7 @@ android {
         }
         create("beta") {
             initWith(getByName("release"))
-            applicationIdSuffix = ".beta"
+            applicationIdSuffix = ".beta2"
             versionNameSuffix = "-beta"
             buildConfigField("String", "APP_UPDATE_CHANNEL", "\"beta\"")
             buildConfigField("long", "BUILD_TIMESTAMP_UTC", "${System.currentTimeMillis()}L")

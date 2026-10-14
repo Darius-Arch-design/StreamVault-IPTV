@@ -84,11 +84,10 @@ private fun externalSubtitleTrackLabel(language: String): String {
     return "$displayLanguage · Titlovi.com"
 }
 
-internal fun TrackSelectionParameters.withExternalSubtitleEnabled(language: String): TrackSelectionParameters =
+internal fun TrackSelectionParameters.withExternalSubtitleEnabled(): TrackSelectionParameters =
     buildUpon()
         .clearOverridesOfType(C.TRACK_TYPE_TEXT)
         .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
-        .setPreferredTextLanguage(language)
         .setSelectTextByDefault(true)
         .build()
 

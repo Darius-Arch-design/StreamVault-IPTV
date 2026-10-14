@@ -838,7 +838,7 @@ class Media3PlayerEngine @Inject constructor(
         val selection = externalSubtitlePlaybackState.selection ?: return mainMediaSource
         trackController.selectExternalSubtitleForCurrentPlayback()
         player.trackSelectionParameters = player.trackSelectionParameters
-            .withExternalSubtitleEnabled(selection.language)
+            .withExternalSubtitleEnabled()
         return externalSubtitlePlaybackState.attach(
             mainMediaSource = mainMediaSource,
             dataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(context)

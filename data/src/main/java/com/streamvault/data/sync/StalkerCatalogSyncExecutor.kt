@@ -53,6 +53,7 @@ private const val LIVE_CATEGORY_SEQUENTIAL_MODE_WARNING =
     "Live category sync downgraded to sequential mode after provider stress signals."
 private const val FALLBACK_STAGE_BATCH_SIZE = 500
 private const val STALKER_BOOTSTRAP_LIVE_CHANNEL_CAP = 200
+private const val STALKER_MIN_RECOVERABLE_BULK_CHANNELS = 1_000
 
 /** Owns Stalker authentication, full catalog orchestration, and Live repair execution. */
 internal class StalkerCatalogSyncExecutor(
@@ -472,7 +473,7 @@ internal class StalkerCatalogSyncExecutor(
             batch.clear()
         }
 
-        suspend fun finalizeStagedImport(): StagedStalkerLiveCatalogResult {
+        suspend fun finalizeStagedImport(partial: Boolean = false): StagedStalkerLiveCatalogResult {
             stagedSessionId?.let { sessionId ->
                 if (hiddenLiveCategoryIds.isNotEmpty()) {
                     mergeHiddenChannelsIntoStaging(provider.id, sessionId, hiddenLiveCategoryIds)
@@ -496,7 +497,13 @@ internal class StalkerCatalogSyncExecutor(
                     warnings = (warnings + "Live TV returned no usable channels; keeping the last verified Live catalog.").distinct()
                 )
             }
-            syncCatalogStore.applyStagedLiveCatalog(provider.id, sessionId, categories, afterCatalogApply)
+            if (partial) {
+                // An interrupted bulk response is a usable subset. Keep channels from an
+                // earlier sync that were absent from this response.
+                syncCatalogStore.applyStagedLiveCatalogUpsertOnly(provider.id, sessionId, categories, afterCatalogApply)
+            } else {
+                syncCatalogStore.applyStagedLiveCatalog(provider.id, sessionId, categories, afterCatalogApply)
+            }
             return StagedStalkerLiveCatalogResult(acceptedCount, warnings)
         }
 
@@ -555,6 +562,21 @@ internal class StalkerCatalogSyncExecutor(
                     bulkFailure = IOException("Bulk live request timed out; switching to category requests.")
                     progress(provider.id, onProgress, "Bulk live request is slow; loading categories instead...")
                 }
+            }
+
+            if (maxChannels == null &&
+                acceptedCount + batch.size >= STALKER_MIN_RECOVERABLE_BULK_CHANNELS &&
+                bulkRowsWithResolvedCategories >= (acceptedCount + batch.size) * 4 / 5
+            ) {
+                flushBatch()
+                Log.w(
+                    STALKER_EXECUTOR_TAG,
+                    "Stalker bulk live sync ended after $acceptedCount channels for provider ${provider.id}; retaining partial catalog.",
+                    bulkFailure
+                )
+                warnings += "Bulk Live TV transfer ended early; saved $acceptedCount channels. A later Live sync can fetch the rest."
+                progress(provider.id, onProgress, "Keeping $acceptedCount channels from interrupted Live TV download...")
+                return finalizeStagedImport(partial = true)
             }
 
             stagedSessionId?.let { syncCatalogStore.discardStagedImport(provider.id, it) }

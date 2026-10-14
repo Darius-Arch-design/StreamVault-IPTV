@@ -13,9 +13,9 @@ class AppUpdateInstallerIntentTest {
     fun packageInstallIntentSharesApkUriWithReadPermission() {
         val apkUri = Uri.parse("content://com.streamvault.app.fileprovider/apk/update.apk")
 
-        val intent = buildUpdateInstallIntent(Intent.ACTION_INSTALL_PACKAGE, apkUri)
+        val intent = buildUpdateInstallIntent("android.intent.action.INSTALL_PACKAGE", apkUri)
 
-        assertThat(intent.action).isEqualTo(Intent.ACTION_INSTALL_PACKAGE)
+        assertThat(intent.action).isEqualTo("android.intent.action.INSTALL_PACKAGE")
         assertThat(intent.data).isEqualTo(apkUri)
         assertThat(intent.type).isEqualTo("application/vnd.android.package-archive")
         assertThat(intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK).isNotEqualTo(0)

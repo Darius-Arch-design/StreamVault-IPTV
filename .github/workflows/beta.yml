@@ -80,8 +80,13 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Run Stalker regression tests
+      - name: Run playback and Stalker regression tests
         run: |
+          ./gradlew --console=plain :player:testDebugUnitTest \
+            --tests 'com.streamvault.player.ExternalSubtitlePlaybackTest'
+          ./gradlew --console=plain :feature:playback:testDebugUnitTest \
+            --tests 'com.streamvault.feature.playback.player.PlayerExternalSubtitleCoordinatorTest' \
+            --tests 'com.streamvault.feature.playback.player.PlayerExternalSubtitlePickerLabelTest'
           ./gradlew --console=plain :domain:test --tests 'com.streamvault.domain.usecase.SearchContentTest'
           ./gradlew --console=plain :data:testDebugUnitTest \
             --tests 'com.streamvault.data.remote.stalker.StalkerProviderTest' \

@@ -2,12 +2,14 @@ package com.streamvault.player
 
 import android.net.Uri
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.datasource.ByteArrayDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.TransferListener
+import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.google.common.truth.Truth.assertThat
 import java.io.IOException
@@ -54,6 +56,32 @@ class ExternalSubtitlePlaybackTest {
         assertThat(configuration.mimeType).isEqualTo(MimeTypes.APPLICATION_SUBRIP)
         assertThat(configuration.language).isEqualTo("he")
         assertThat(configuration.selectionFlags).isEqualTo(C.SELECTION_FLAG_DEFAULT)
+        assertThat(configuration.id).isEqualTo(externalSubtitleTrackId(configuration.uri, "he"))
+        assertThat(configuration.label).contains("Titlovi.com")
+    }
+
+    @Test
+    fun `selected external subtitle is reattached when the media source is rebuilt and clears after a track change`() {
+        val subtitleDataSourceFactory = DataSource.Factory { ByteArrayDataSource(byteArrayOf()) }
+        val mainDataSourceFactory = DataSource.Factory { ByteArrayDataSource(byteArrayOf()) }
+        val state = ExternalSubtitlePlaybackState()
+        state.select(Uri.parse("file:///tmp/croatian.srt"), "hr")
+
+        fun mainSource(name: String) = ProgressiveMediaSource.Factory(mainDataSourceFactory)
+            .createMediaSource(MediaItem.fromUri(Uri.parse("https://example.test/$name.mp4")))
+
+        val initial = state.attach(mainSource("movie"), subtitleDataSourceFactory)
+        val recovered = state.attach(mainSource("retried-movie"), subtitleDataSourceFactory)
+
+        assertThat(initial).isInstanceOf(MergingMediaSource::class.java)
+        assertThat(recovered).isInstanceOf(MergingMediaSource::class.java)
+        assertThat(state.selection?.language).isEqualTo("hr")
+        assertThat(state.selection?.trackId).isEqualTo(externalSubtitleTrackId(Uri.parse("file:///tmp/croatian.srt"), "hr"))
+
+        state.clearUnlessSelected("in-stream-subtitle")
+        val afterUserSelection = mainSource("movie-after-track-change")
+        assertThat(state.selection).isNull()
+        assertThat(state.attach(afterUserSelection, subtitleDataSourceFactory)).isSameInstanceAs(afterUserSelection)
     }
 
     @Test

@@ -100,6 +100,21 @@ internal suspend fun reconcileTargetedProviderStatus(
             )
         }
         is com.streamvault.domain.model.Result.Error -> {
+            val currentProvider = providerDao.getById(provider.id) ?: provider
+            if (provider.type == ProviderType.STALKER_PORTAL && currentProvider.isActive &&
+                hasUsableLiveCatalogForActivation(
+                    provider.id,
+                    provider.type,
+                    channelDao,
+                    categoryDao,
+                    syncMetadataRepository
+                )
+            ) {
+                // The bootstrap catalog remains playable if its queued full sync fails.
+                // Keep the selected provider usable and report the incomplete refresh.
+                providerDao.update(currentProvider.copy(status = ProviderStatus.PARTIAL))
+                return
+            }
             if (provider.status != ProviderStatus.PARTIAL) {
                 providerDao.update(provider.copy(isActive = false, status = ProviderStatus.ERROR))
             }

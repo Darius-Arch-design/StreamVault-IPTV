@@ -160,6 +160,8 @@ public fun SimpleTextValueDialog(
 @Composable
 public fun TitloviCredentialsDialog(
     initialUsername: String?,
+    checking: Boolean,
+    error: String?,
     onDismiss: () -> Unit,
     onConfirm: (username: String, password: String) -> Unit,
     onClear: () -> Unit
@@ -198,6 +200,10 @@ public fun TitloviCredentialsDialog(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
+                if (checking) Text(stringResource(R.string.settings_titlovi_verifying))
+                if (error != null) {
+                    Text(text = error, color = MaterialTheme.colorScheme.error)
+                }
             }
         },
         footer = {
@@ -214,7 +220,8 @@ public fun TitloviCredentialsDialog(
                     onClick = onDismiss
                 )
                 PremiumDialogActionButton(
-                    label = stringResource(R.string.settings_save),
+                    label = stringResource(if (checking) R.string.settings_titlovi_verifying else R.string.settings_save),
+                    enabled = !checking,
                     onClick = { onConfirm(username.trim(), password) }
                 )
             }

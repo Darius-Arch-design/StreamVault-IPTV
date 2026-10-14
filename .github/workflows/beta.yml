@@ -26,21 +26,24 @@ jobs:
         shell: bash
         run: |
           VERSION_NAME=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts | head -n 1)
-          VERSION_CODE=$(sed -n 's/.*versionCode = \([0-9][0-9]*\).*/\1/p' app/build.gradle.kts | head -n 1)
+          BASE_VERSION_CODE=$(sed -n 's/.*versionCode = \([0-9][0-9]*\).*/\1/p' app/build.gradle.kts | head -n 1)
           SHORT_SHA="${GITHUB_SHA::7}"
           BETA_SEQUENCE=$(printf "%06d.%02d" "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_ATTEMPT")
+          BETA_VERSION_CODE=$((BASE_VERSION_CODE + GITHUB_RUN_NUMBER))
+          BETA_VERSION_NAME="$VERSION_NAME-beta.$BETA_SEQUENCE"
 
-          if [ -z "$VERSION_NAME" ] || [ -z "$VERSION_CODE" ]; then
+          if [ -z "$VERSION_NAME" ] || [ -z "$BASE_VERSION_CODE" ]; then
             echo "Failed to read app version from app/build.gradle.kts"
             exit 1
           fi
 
           echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
-          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "beta_version_name=$BETA_VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "beta_version_code=$BETA_VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
           echo "beta_sequence=$BETA_SEQUENCE" >> "$GITHUB_OUTPUT"
-          echo "beta_tag=v$VERSION_NAME-beta.$BETA_SEQUENCE" >> "$GITHUB_OUTPUT"
-          echo "apk_name=StreamVault-$VERSION_NAME-beta.$BETA_SEQUENCE.apk" >> "$GITHUB_OUTPUT"
+          echo "beta_tag=v$BETA_VERSION_NAME+$BETA_VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "apk_name=StreamVault-$BETA_VERSION_NAME.apk" >> "$GITHUB_OUTPUT"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -87,9 +90,13 @@ jobs:
             --tests 'com.streamvault.data.repository.VodRepositoryImplTest'
           ./gradlew --console=plain :feature:settings:testDebugUnitTest \
             --tests 'com.streamvault.feature.settings.presentation.SettingsPreferencesContractTest'
+          ./gradlew --console=plain :app:testDebugUnitTest \
+            --tests 'com.streamvault.app.ui.screens.settings.SettingsAppUpdateModelsTest' \
+            --tests 'com.streamvault.app.update.GitHubReleaseCheckerTest' \
+            --tests 'com.streamvault.app.update.AppUpdateInstallerIntentTest'
 
       - name: Build beta APK
-        run: ./gradlew --console=plain :app:assembleBeta
+        run: ./gradlew --console=plain -PappVersionCode="${{ steps.app_version.outputs.beta_version_code }}" -PappVersionName="${{ steps.app_version.outputs.beta_version_name }}" :app:assembleBeta
 
       - name: Prepare beta artifact
         shell: bash
@@ -128,18 +135,23 @@ jobs:
         shell: bash
         run: |
           VERSION_NAME=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts | head -n 1)
+          BASE_VERSION_CODE=$(sed -n 's/.*versionCode = \([0-9][0-9]*\).*/\1/p' app/build.gradle.kts | head -n 1)
           SHORT_SHA="${GITHUB_SHA::7}"
           BETA_SEQUENCE=$(printf "%06d.%02d" "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_ATTEMPT")
+          BETA_VERSION_CODE=$((BASE_VERSION_CODE + GITHUB_RUN_NUMBER))
+          BETA_VERSION_NAME="$VERSION_NAME-beta.$BETA_SEQUENCE"
 
-          if [ -z "$VERSION_NAME" ]; then
+          if [ -z "$VERSION_NAME" ] || [ -z "$BASE_VERSION_CODE" ]; then
             echo "Failed to read app version from app/build.gradle.kts"
             exit 1
           fi
 
           echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "beta_version_name=$BETA_VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "beta_version_code=$BETA_VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
           echo "beta_sequence=$BETA_SEQUENCE" >> "$GITHUB_OUTPUT"
-          echo "beta_tag=v$VERSION_NAME-beta.$BETA_SEQUENCE" >> "$GITHUB_OUTPUT"
+          echo "beta_tag=v$BETA_VERSION_NAME+$BETA_VERSION_CODE" >> "$GITHUB_OUTPUT"
 
       - name: Download beta APK artifact
         uses: actions/download-artifact@v4

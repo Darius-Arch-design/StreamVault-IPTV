@@ -10,6 +10,12 @@ on:
       - 'data/src/main/java/com/streamvault/data/sync/ProviderSyncWorker.kt'
       - 'data/src/test/java/com/streamvault/data/sync/SyncManagerTest.kt'
       - 'data/src/test/java/com/streamvault/data/sync/ProviderSyncWorkerTest.kt'
+      - 'domain/src/main/java/com/streamvault/domain/repository/ExternalSubtitleRepository.kt'
+      - 'data/src/main/java/com/streamvault/data/repository/TitloviExternalSubtitleRepository.kt'
+      - 'data/src/test/java/com/streamvault/data/repository/TitloviExternalSubtitleRepositoryTest.kt'
+      - 'feature/settings/src/main/java/com/streamvault/feature/settings/presentation/**'
+      - 'feature/settings/src/main/res/values/strings.xml'
+      - 'feature/playback/src/test/java/com/streamvault/feature/playback/player/PlayerExternalSubtitleCoordinatorTest.kt'
       - '.github/workflows/codex-feedback-check.yml'
 
 permissions:
@@ -34,3 +40,11 @@ jobs:
           ./gradlew --console=plain :data:testDebugUnitTest \
             --tests 'com.streamvault.data.sync.SyncManagerTest.sync_stalker_keeps_large_interrupted_bulk_import_without_refetching_every_category' \
             --tests 'com.streamvault.data.sync.ProviderSyncWorkerTest.failed Stalker continuation keeps its playable bootstrap catalog active'
+      - name: Compile subtitle account settings
+        run: ./gradlew --console=plain :feature:settings:compileDebugKotlin
+      - name: Run Titlovi authentication and player tests
+        run: |
+          ./gradlew --console=plain :data:testDebugUnitTest \
+            --tests 'com.streamvault.data.repository.TitloviExternalSubtitleRepositoryTest'
+          ./gradlew --console=plain :feature:playback:testDebugUnitTest \
+            --tests 'com.streamvault.feature.playback.player.PlayerExternalSubtitleCoordinatorTest'

@@ -274,7 +274,7 @@ class AppUpdateInstaller @Inject constructor(
             apkFile
         )
 
-        val installIntent = buildUpdateInstallIntent(Intent.ACTION_INSTALL_PACKAGE, apkUri)
+        val installIntent = buildUpdateInstallIntent(INSTALL_PACKAGE_ACTION, apkUri)
 
         try {
             withContext(Dispatchers.Main.immediate) {
@@ -387,3 +387,4 @@ internal fun buildUpdateInstallIntent(action: String, apkUri: Uri): Intent = Int
 }
 
 private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
+private const val INSTALL_PACKAGE_ACTION = "android.intent.action.INSTALL_PACKAGE"

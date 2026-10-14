@@ -6,6 +6,9 @@ import java.io.File
 
 interface ExternalSubtitleRepository {
 
+    /** Checks that the account can obtain an API token before it is stored. */
+    suspend fun validateAccount(username: String, password: String): Result<Unit>
+
     suspend fun search(
         contentType: ContentType,
         title: String,

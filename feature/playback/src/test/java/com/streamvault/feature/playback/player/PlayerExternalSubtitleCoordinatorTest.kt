@@ -46,6 +46,7 @@ class PlayerExternalSubtitleCoordinatorTest {
     }
 
     private class FakeExternalSubtitleRepository : ExternalSubtitleRepository {
+        override suspend fun validateAccount(username: String, password: String): Result<Unit> = Result.success(Unit)
         val searchedLanguages = mutableListOf<String>()
         var downloadCount = 0
         private val file = File.createTempFile("streamvault-subtitle", ".srt").apply {

@@ -371,7 +371,6 @@ class ProviderQrPairingManager @Inject constructor(
             is ValidateAndAddProviderResult.Error ->
                 ProviderPairingSubmitResult.Error(result.message)
         }
-    }
 
     private fun updateProgress(message: String) {
         _state.value = _state.value.copy(

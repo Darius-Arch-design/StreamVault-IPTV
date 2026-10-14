@@ -75,6 +75,7 @@ import com.streamvault.domain.repository.ChannelRepository
 import com.streamvault.domain.repository.MovieRepository
 import com.streamvault.domain.repository.SeriesRepository
 import com.streamvault.domain.repository.SyncMetadataRepository
+import com.streamvault.domain.repository.ExternalSubtitleRepository
 import com.streamvault.domain.usecase.GetCustomCategories
 import com.streamvault.domain.usecase.SyncProvider
 import com.streamvault.domain.usecase.SyncProviderCommand
@@ -115,6 +116,7 @@ class SettingsViewModel @Inject constructor(
     private val syncProvider: SyncProvider,
     private val epgSourceRepository: com.streamvault.domain.repository.EpgSourceRepository,
     private val appUpdatePort: SettingsAppUpdatePort,
+    private val externalSubtitleRepository: ExternalSubtitleRepository,
     private val getCustomCategories: GetCustomCategories,
     private val audioCompatibilityMemoryStore: AudioCompatibilityMemoryStore
 ) : ViewModel() {
@@ -126,6 +128,10 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
     private val _titloviAccountName = MutableStateFlow<String?>(null)
     val titloviAccountName: StateFlow<String?> = _titloviAccountName.asStateFlow()
+    private val _titloviCredentialsChecking = MutableStateFlow(false)
+    val titloviCredentialsChecking: StateFlow<Boolean> = _titloviCredentialsChecking.asStateFlow()
+    private val _titloviCredentialError = MutableStateFlow<String?>(null)
+    val titloviCredentialError: StateFlow<String?> = _titloviCredentialError.asStateFlow()
     val playerLiveStreamFormatMode: StateFlow<LiveStreamFormatMode> =
         preferencesRepository.playerLiveStreamFormatMode.stateIn(
             scope = viewModelScope,
@@ -834,18 +840,25 @@ class SettingsViewModel @Inject constructor(
 
     fun setTitloviCredentials(username: String, password: String, onSaved: () -> Unit) {
         viewModelScope.launch {
+            if (_titloviCredentialsChecking.value) return@launch
+            _titloviCredentialsChecking.value = true
+            _titloviCredentialError.value = null
             try {
+                externalSubtitleRepository.validateAccount(username, password).getOrThrow()
                 preferencesRepository.setTitloviCredentials(username, password)
                 val saved = preferencesRepository.getTitloviCredentials()
                 check(saved?.username == username.trim() && saved.password == password) {
                     "Titlovi.com credentials could not be verified after saving"
                 }
                 _titloviAccountName.value = saved.username
-                showUserMessage(appContext.getString(R.string.settings_titlovi_credentials_saved))
+                showUserMessage(appContext.getString(R.string.settings_titlovi_credentials_verified))
                 onSaved()
             } catch (error: Throwable) {
                 if (error is kotlinx.coroutines.CancellationException) throw error
-                showUserMessage(appContext.getString(R.string.settings_titlovi_credentials_error))
+                _titloviCredentialError.value =
+                    error.message ?: appContext.getString(R.string.settings_titlovi_credentials_error)
+            } finally {
+                _titloviCredentialsChecking.value = false
             }
         }
     }

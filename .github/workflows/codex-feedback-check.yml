@@ -1,0 +1,36 @@
+name: Verify Stalker beta feedback
+
+on:
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - 'feature/provider/src/main/java/com/streamvault/feature/provider/pairing/ProviderQrPairingManager.kt'
+      - 'data/src/main/java/com/streamvault/data/sync/StalkerCatalogSyncExecutor.kt'
+      - 'data/src/main/java/com/streamvault/data/sync/ProviderSyncWorker.kt'
+      - 'data/src/test/java/com/streamvault/data/sync/SyncManagerTest.kt'
+      - 'data/src/test/java/com/streamvault/data/sync/ProviderSyncWorkerTest.kt'
+      - '.github/workflows/codex-feedback-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  targeted-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Compile QR pairing feature
+        run: ./gradlew --console=plain :feature:provider:compileDebugKotlin
+      - name: Run Stalker sync regression tests
+        run: |
+          ./gradlew --console=plain :data:testDebugUnitTest \
+            --tests 'com.streamvault.data.sync.SyncManagerTest.sync_stalker_keeps_large_interrupted_bulk_import_without_refetching_every_category' \
+            --tests 'com.streamvault.data.sync.ProviderSyncWorkerTest.failed Stalker continuation keeps its playable bootstrap catalog active'

@@ -191,7 +191,7 @@ class TitloviExternalSubtitleRepository private constructor(
                 "Unsupported external subtitle source: ${subtitle.source}"
             }
             val descriptor = TitloviDownloadDescriptor.parse(subtitle.downloadId)
-            val cacheDirectory = File(context.cacheDir, CACHE_DIRECTORY).apply { mkdirs() }
+            val cacheDirectory = File(context.filesDir, CACHE_DIRECTORY).apply { mkdirs() }
             val target = File(
                 cacheDirectory,
                 "titlovi-${descriptor.id}-${descriptor.type}-${descriptor.season}-${descriptor.episode}-${subtitle.language}.srt"

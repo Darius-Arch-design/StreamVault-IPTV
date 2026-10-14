@@ -31,14 +31,14 @@ class TitloviExternalSubtitleRepositoryTest {
     @Before
     fun setUp() {
         context = RuntimeEnvironment.getApplication()
-        context.cacheDir.resolve("external-subtitles").deleteRecursively()
+        context.filesDir.resolve("external-subtitles").deleteRecursively()
         server = MockWebServer().apply { start() }
     }
 
     @After
     fun tearDown() {
         server.shutdown()
-        context.cacheDir.resolve("external-subtitles").deleteRecursively()
+        context.filesDir.resolve("external-subtitles").deleteRecursively()
     }
 
     @Test
@@ -171,6 +171,7 @@ class TitloviExternalSubtitleRepositoryTest {
         val file = repository.downloadToCache(subtitle).getOrThrow()
 
         assertThat(file.readText()).contains("Čćžšđ")
+        assertThat(file.parentFile?.parentFile).isEqualTo(context.filesDir)
         val request = server.takeRequest()
         assertThat(request.requestUrl?.queryParameter("mediaId")).isEqualTo("77")
         assertThat(request.requestUrl?.queryParameter("type")).isEqualTo("2")

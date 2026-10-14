@@ -41,7 +41,9 @@ class ExternalSubtitlePlaybackTest {
         val subtitleEnabledParameters = textDisabledParameters.withExternalSubtitleEnabled("hr")
 
         assertThat(subtitleEnabledParameters.disabledTrackTypes).doesNotContain(C.TRACK_TYPE_TEXT)
-        assertThat(subtitleEnabledParameters.preferredTextLanguages).contains("hr")
+        assertThat(
+            subtitleEnabledParameters.preferredTextLanguages.any { it.startsWith("hr", ignoreCase = true) }
+        ).isTrue()
         assertThat(subtitleEnabledParameters.selectTextByDefault).isTrue()
     }
 

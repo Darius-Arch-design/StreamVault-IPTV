@@ -92,7 +92,8 @@ jobs:
             --tests 'com.streamvault.data.remote.stalker.StalkerProviderTest' \
             --tests 'com.streamvault.data.remote.stalker.OkHttpStalkerApiServiceTest' \
             --tests 'com.streamvault.data.repository.SearchRepositoryImplTest' \
-            --tests 'com.streamvault.data.repository.VodRepositoryImplTest'
+            --tests 'com.streamvault.data.repository.VodRepositoryImplTest' \
+            --tests 'com.streamvault.data.repository.TitloviExternalSubtitleRepositoryTest'
           ./gradlew --console=plain :feature:settings:testDebugUnitTest \
             --tests 'com.streamvault.feature.settings.presentation.SettingsPreferencesContractTest'
           ./gradlew --console=plain :app:testDebugUnitTest \

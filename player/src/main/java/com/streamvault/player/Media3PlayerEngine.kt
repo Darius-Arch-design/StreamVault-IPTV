@@ -845,6 +845,33 @@ class Media3PlayerEngine @Inject constructor(
         )
     }
 
+    private fun reselectActiveExternalSubtitle(
+        player: ExoPlayer,
+        tracks: androidx.media3.common.Tracks
+    ) {
+        val selection = externalSubtitlePlaybackState.selection ?: return
+        for (group in tracks.groups) {
+            if (group.mediaTrackGroup.type != C.TRACK_TYPE_TEXT) continue
+            for (index in 0 until group.length) {
+                val format = group.mediaTrackGroup.getFormat(index)
+                if (format.id != selection.trackId || !group.isTrackSupported(index, false)) continue
+                if (!group.isTrackSelected(index)) {
+                    val override = androidx.media3.common.TrackSelectionOverride(
+                        group.mediaTrackGroup,
+                        listOf(index)
+                    )
+                    player.trackSelectionParameters = player.trackSelectionParameters
+                        .buildUpon()
+                        .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                        .setOverrideForType(override)
+                        .build()
+                    Log.i(TAG, "reselected external subtitle trackId=" + selection.trackId)
+                }
+                return
+            }
+        }
+    }
+
     override fun toggleMute() {
         audioFocusController.toggleMute()
     }
@@ -1682,7 +1709,10 @@ class Media3PlayerEngine @Inject constructor(
 
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                 trackController.onTracksChanged(tracks)
-                exoPlayer?.let(trackController::applyVodTrackPreferences)
+                exoPlayer?.let { player ->
+                    trackController.applyVodTrackPreferences(player)
+                    reselectActiveExternalSubtitle(player, tracks)
+                }
                 refreshChapters(tracks)
                 // Detect the silent failure: the stream contains audio groups but no track
                 // is decodable on this device (e.g. EAC3/AC3 without passthrough or a

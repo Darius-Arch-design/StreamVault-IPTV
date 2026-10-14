@@ -6,6 +6,7 @@ import com.streamvault.domain.model.ExternalSubtitle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 data class TitloviSearchUiState(
     val loading: Boolean = false,
@@ -136,3 +137,21 @@ internal suspend fun PlayerViewModel.resolveExternalSubtitleRequest(): PlayerExt
 private fun String?.toExternalSubtitleYear(): Int? = this
     ?.let { value -> Regex("""(?:19|20)\d{2}""").find(value)?.value }
     ?.toIntOrNull()
+
+
+internal fun ExternalSubtitle.toPlayerSubtitlePickerLabel(): String {
+    val languageLabel = displayLanguage.trim()
+        .ifBlank { language.uppercase(Locale.ROOT) }
+    val normalizedRelease = releaseName
+        .replace(Regex("""(?i)(?:\.(?:srt|ass|ssa|sub|vtt|zip))+$"""), "")
+        .replace(Regex("[._]+"), " ")
+        .replace(Regex("\\s+"), " ")
+        .trim()
+    if (normalizedRelease.isBlank()) return languageLabel
+
+    val compactRelease = normalizedRelease.take(MAX_SUBTITLE_RELEASE_LABEL_LENGTH).trimEnd()
+        .let { if (normalizedRelease.length > MAX_SUBTITLE_RELEASE_LABEL_LENGTH) "$it…" else it }
+    return "$languageLabel · $compactRelease"
+}
+
+private const val MAX_SUBTITLE_RELEASE_LABEL_LENGTH = 64

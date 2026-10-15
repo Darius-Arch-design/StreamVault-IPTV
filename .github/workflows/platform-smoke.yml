@@ -4,14 +4,6 @@ on:
   push:
     branches:
       - develop
-  pull_request:
-    branches:
-      - develop
-    paths:
-      - 'core/ui/src/main/java/com/streamvault/core/ui/components/shell/AppShellVisuals.kt'
-      - 'core/ui/src/androidTest/java/com/streamvault/core/ui/components/shell/CoreAppScreenScaffoldTest.kt'
-      - 'tools/run-platform-smoke.sh'
-      - '.github/workflows/platform-smoke.yml'
   workflow_call:
   workflow_dispatch:
 
@@ -67,7 +59,6 @@ jobs:
             gpu: swiftshader_indirect
             adb_delay: -delay-adb
 
-    if: github.event_name != 'pull_request' || matrix.api-level == 36
     runs-on: ${{ matrix.runner }}
 
     steps:

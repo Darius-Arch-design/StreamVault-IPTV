@@ -3,7 +3,11 @@ package com.streamvault.feature.playback.player
 import android.net.Uri
 import com.streamvault.domain.model.ContentType
 import com.streamvault.domain.model.ExternalSubtitle
+import com.streamvault.player.PlaybackState
+import com.streamvault.player.PlayerTrack
+import com.streamvault.player.TrackType
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -76,12 +80,25 @@ internal fun PlayerViewModel.scheduleAutomaticExternalSubtitle(
     if (currentContentType == ContentType.LIVE) return
     val sessionScope = playbackSessionScope(requestVersion) ?: return
     externalSubtitleJob = sessionScope.launch {
+        val engine = playerEngine
+        val playbackState = engine.playbackState.first { state ->
+            state == PlaybackState.READY ||
+                state == PlaybackState.ERROR ||
+                state == PlaybackState.ENDED
+        }
+        if (playbackState != PlaybackState.READY || !isActivePlaybackSession(requestVersion)) return@launch
+
+        // Wait for the media tracks before deciding whether an external subtitle is needed.
+        if (hasEmbeddedExYuSubtitleTrack(engine.availableSubtitleTracks.value)) return@launch
+
         val request = resolveExternalSubtitleRequest() ?: return@launch
         val loaded = playerExternalSubtitleCoordinator.loadBest(request) ?: return@launch
         if (!isActivePlaybackSession(requestVersion)) return@launch
         if (currentResolvedPlaybackUrl != expectedPlaybackUrl) return@launch
+        // A late manifest update may reveal embedded text tracks while Titlovi is searched.
+        if (hasEmbeddedExYuSubtitleTrack(engine.availableSubtitleTracks.value)) return@launch
         runCatching {
-            playerEngine.addExternalSubtitle(
+            engine.addExternalSubtitle(
                 subtitleUri = Uri.fromFile(loaded.file),
                 language = loaded.subtitle.language
             )
@@ -137,6 +154,42 @@ internal suspend fun PlayerViewModel.resolveExternalSubtitleRequest(): PlayerExt
 private fun String?.toExternalSubtitleYear(): Int? = this
     ?.let { value -> Regex("""(?:19|20)\d{2}""").find(value)?.value }
     ?.toIntOrNull()
+
+
+internal fun hasEmbeddedExYuSubtitleTrack(tracks: List<PlayerTrack>): Boolean =
+    tracks.any { track ->
+        track.type == TrackType.TEXT &&
+            listOfNotNull(track.language, track.name).any(::isExYuSubtitleDescriptor)
+    }
+
+private fun isExYuSubtitleDescriptor(value: String): Boolean {
+    val normalized = value.trim().lowercase(Locale.ROOT).replace('_', '-')
+    if (normalized.isBlank()) return false
+    val code = normalized.substringBefore('-')
+    if (code in EX_YU_SUBTITLE_LANGUAGE_CODES) return true
+
+    val label = normalized.replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
+    val tokens = label.split(Regex("\\s+")).toSet()
+    return tokens.any { it in EX_YU_SUBTITLE_LANGUAGE_CODES } ||
+        EX_YU_SUBTITLE_LANGUAGE_LABELS.any { marker -> label.contains(marker) } ||
+        "bcs" in tokens
+}
+
+private val EX_YU_SUBTITLE_LANGUAGE_CODES = setOf(
+    "hr", "hrv", "bs", "bos", "sr", "srp", "sh", "hbs",
+    "cnr", "sl", "slv", "mk", "mkd"
+)
+
+private val EX_YU_SUBTITLE_LANGUAGE_LABELS = listOf(
+    "croatian", "hrvatski", "хрватски",
+    "bosnian", "bosanski", "босански",
+    "serbian", "srpski", "српски",
+    "serbo croatian", "croato serbian",
+    "montenegrin", "crnogorski",
+    "slovenian", "slovene", "slovenski",
+    "macedonian", "makedonski", "македонски",
+    "ex yu"
+)
 
 
 internal fun ExternalSubtitle.toPlayerSubtitlePickerLabel(): String {

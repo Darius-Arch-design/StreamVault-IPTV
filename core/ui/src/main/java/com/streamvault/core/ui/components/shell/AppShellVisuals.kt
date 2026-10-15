@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusGroup
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -251,15 +252,19 @@ private fun TopNavigationBar(
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
-    val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
+    val focusRequesters = remember(destinations) {
+        destinations.associate { destination -> destination.id to FocusRequester() }
+    }
 
     Surface(
-        modifier = modifier.focusProperties {
-            onEnter = {
-                val activeItem = findActiveDestination(destinations, currentDestinationId)
-                focusRequesters[activeItem?.id] ?: FocusRequester.Default
-            }
-        },
+        modifier = modifier
+            .focusGroup()
+            .focusProperties {
+                onEnter = {
+                    findActiveDestination(destinations, currentDestinationId)
+                        ?.let { activeItem -> focusRequesters[activeItem.id]?.requestFocus() }
+                }
+            },
         shape = RoundedCornerShape(18.dp),
         colors = SurfaceDefaults.colors(containerColor = AppColors.Surface.copy(alpha = 0.9f))
     ) {
@@ -286,7 +291,7 @@ private fun TopNavigationBar(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 destinations.forEach { destination ->
-                    val requester = focusRequesters.getOrPut(destination.id) { FocusRequester() }
+                    val requester = focusRequesters.getValue(destination.id)
                     TopNavigationButton(
                         destination = destination,
                         selected = currentDestinationId.startsWith(destination.id),
@@ -632,17 +637,20 @@ private fun DestinationRail(
     modifier: Modifier = Modifier
 ) {
     val spacing = LocalAppSpacing.current
-    val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
+    val focusRequesters = remember(destinations) {
+        destinations.associate { destination -> destination.id to FocusRequester() }
+    }
 
     Box(
         modifier = modifier
             .padding(start = spacing.lg, top = spacing.safeTop, bottom = spacing.safeBottom)
             .clip(RoundedCornerShape(28.dp))
             .background(Brush.verticalGradient(colors = listOf(AppColors.SurfaceElevated, AppColors.Surface)))
+            .focusGroup()
             .focusProperties {
                 onEnter = {
-                    val activeItem = findActiveDestination(destinations, currentDestinationId)
-                    focusRequesters[activeItem?.id] ?: FocusRequester.Default
+                    findActiveDestination(destinations, currentDestinationId)
+                        ?.let { activeItem -> focusRequesters[activeItem.id]?.requestFocus() }
                 }
             }
     ) {
@@ -656,7 +664,7 @@ private fun DestinationRail(
             Text(text = "TV", style = MaterialTheme.typography.labelSmall, color = AppColors.TextTertiary)
             Spacer(modifier = Modifier.height(10.dp))
             destinations.forEach { destination ->
-                val requester = focusRequesters.getOrPut(destination.id) { FocusRequester() }
+                val requester = focusRequesters.getValue(destination.id)
                 RailButton(
                     destination = destination,
                     selected = currentDestinationId.startsWith(destination.id),

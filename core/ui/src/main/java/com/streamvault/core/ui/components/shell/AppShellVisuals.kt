@@ -261,8 +261,11 @@ private fun TopNavigationBar(
             .focusGroup()
             .focusProperties {
                 onEnter = {
-                    findActiveDestination(destinations, currentDestinationId)
-                        ?.let { activeItem -> focusRequesters[activeItem.id]?.requestFocus() }
+                    val activeItem = findActiveDestination(destinations, currentDestinationId)
+                    val requester = activeItem?.let { focusRequesters[it.id] }
+                    if (requester?.requestFocus() == true) {
+                        cancelFocusChange()
+                    }
                 }
             },
         shape = RoundedCornerShape(18.dp),
@@ -649,8 +652,11 @@ private fun DestinationRail(
             .focusGroup()
             .focusProperties {
                 onEnter = {
-                    findActiveDestination(destinations, currentDestinationId)
-                        ?.let { activeItem -> focusRequesters[activeItem.id]?.requestFocus() }
+                    val activeItem = findActiveDestination(destinations, currentDestinationId)
+                    val requester = activeItem?.let { focusRequesters[it.id] }
+                    if (requester?.requestFocus() == true) {
+                        cancelFocusChange()
+                    }
                 }
             }
     ) {

@@ -101,6 +101,7 @@ class CoreAppScreenScaffoldTest {
         composeRule
             .onNodeWithTag("content-target")
             .performSemanticsAction(SemanticsActions.RequestFocus)
+        composeRule.onNodeWithTag("content-target").assertIsFocused()
         composeRule.onNodeWithTag("content-target").performKeyInput {
             keyDown(direction)
             keyUp(direction)

@@ -114,6 +114,11 @@ public fun SettingsContentPane(
     val overviewScrollState = remember(overviewScrollKey) { scrollState(overviewScrollKey) }
     val activeScrollKey = settingsScrollKey(category, page)
     val activeScrollState = remember(activeScrollKey) { scrollState(activeScrollKey) }
+    LaunchedEffect(category, page, activeScrollState) {
+        if (category == SettingsCategory.ABOUT && page != null) {
+            activeScrollState.scrollToItem(0)
+        }
+    }
     LaunchedEffect(activeScrollKey, activeScrollState) {
         snapshotFlow {
             SettingsScrollPosition(

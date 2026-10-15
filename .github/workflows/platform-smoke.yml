@@ -131,3 +131,5 @@ jobs:
             app/build/reports/androidTests/
             data/build/outputs/androidTest-results/
             data/build/reports/androidTests/
+            core/ui/build/outputs/androidTest-results/
+            core/ui/build/reports/androidTests/

@@ -532,6 +532,17 @@ class MoviesViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            providerRepository.getActiveProvider()
+                .filterNotNull()
+                .flatMapLatest { provider ->
+                    movieRepository.getRecommendations(provider.id, limit = 1)
+                }
+                .collectLatest { recommendations ->
+                    _uiState.update { it.copy(recommendedMovie = recommendations.firstOrNull()) }
+                }
+        }
+
+        viewModelScope.launch {
             preferencesRepository.parentalControlLevel.collect { level ->
                 _uiState.update { it.copy(parentalControlLevel = level) }
             }
@@ -1466,6 +1477,7 @@ data class MoviesUiState(
     val favoriteCategoryName: String = "\u2605 Favorites",
     val fullLibraryCategoryName: String = "__full_library__",
     val libraryLensRows: Map<MovieLibraryLens, List<Movie>> = emptyMap(),
+    val recommendedMovie: Movie? = null,
     val selectedCategory: String? = null,
     val selectedCategoryItems: List<Movie> = emptyList(),
     val selectedCategoryLoadedCount: Int = 0,

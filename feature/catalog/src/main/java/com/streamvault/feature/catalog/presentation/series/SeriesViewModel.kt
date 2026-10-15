@@ -464,8 +464,8 @@ class SeriesViewModel @Inject constructor(
                     combine(
                         favoriteRepository.getAllFavorites(provider.id, ContentType.SERIES),
                         playbackHistoryRepository.getRecentlyWatchedByProvider(provider.id, limit = 24),
-                        seriesRepository.getTopRatedPreview(provider.id, VodBrowseDefaults.PREVIEW_ROW_LIMIT),
-                        seriesRepository.getFreshPreview(provider.id, VodBrowseDefaults.PREVIEW_ROW_LIMIT)
+                        seriesRepository.getTopRatedPreview(provider.id, maxOf(VodBrowseDefaults.PREVIEW_ROW_LIMIT * 4, 48)),
+                        seriesRepository.getFreshPreview(provider.id, maxOf(VodBrowseDefaults.PREVIEW_ROW_LIMIT * 4, 48))
                     ) { allFavorites, history, topRated, fresh ->
                         SeriesLibraryLensDependencies(
                             providerId = provider.id,
@@ -489,7 +489,7 @@ class SeriesViewModel @Inject constructor(
                         .map { it.contentId }
                         .take(VodBrowseDefaults.PREVIEW_ROW_LIMIT)
                         .toList()
-                    val continueIds = dependencies.history
+                    val recentlyWatchedIds = dependencies.history
                         .asSequence()
                         .filter {
                             it.contentType == ContentType.SERIES || it.contentType == ContentType.SERIES_EPISODE
@@ -497,8 +497,8 @@ class SeriesViewModel @Inject constructor(
                         .sortedByDescending { it.lastWatchedAt }
                         .distinctBy { it.seriesId ?: it.contentId }
                         .map { it.seriesId ?: it.contentId }
-                        .take(VodBrowseDefaults.PREVIEW_ROW_LIMIT)
                         .toList()
+                    val continueIds = recentlyWatchedIds.take(VodBrowseDefaults.PREVIEW_ROW_LIMIT)
 
                     val favoritePreview = if (favoriteIds.isEmpty()) {
                         emptyList()
@@ -511,14 +511,26 @@ class SeriesViewModel @Inject constructor(
                         seriesRepository.getSeriesByIds(continueIds).first().orderByIds(continueIds)
                     }.markSeriesFavorites(globalFavoriteIds)
 
+                    val recommendedSeries = buildSeriesRecommendations(
+                        candidates = (dependencies.topRated + dependencies.fresh).distinctBy { it.id },
+                        seedSeries = (favoritePreview + continuePreview).distinctBy { it.id },
+                        excludedIds = globalFavoriteIds + recentlyWatchedIds,
+                        limit = 1
+                    ).firstOrNull()
+
                     _uiState.update {
                         it.copy(
                             libraryLensRows = mapOf(
                                 SeriesLibraryLens.FAVORITES to favoritePreview,
                                 SeriesLibraryLens.CONTINUE to continuePreview,
-                                SeriesLibraryLens.TOP_RATED to dependencies.topRated.markSeriesFavorites(globalFavoriteIds),
-                                SeriesLibraryLens.FRESH to dependencies.fresh.markSeriesFavorites(globalFavoriteIds)
-                            ).filterValues { rows -> rows.isNotEmpty() }
+                                SeriesLibraryLens.TOP_RATED to dependencies.topRated
+                                    .take(VodBrowseDefaults.PREVIEW_ROW_LIMIT)
+                                    .markSeriesFavorites(globalFavoriteIds),
+                                SeriesLibraryLens.FRESH to dependencies.fresh
+                                    .take(VodBrowseDefaults.PREVIEW_ROW_LIMIT)
+                                    .markSeriesFavorites(globalFavoriteIds)
+                            ).filterValues { rows -> rows.isNotEmpty() },
+                            recommendedSeries = recommendedSeries
                         )
                     }
                 }
@@ -1468,6 +1480,7 @@ data class SeriesUiState(
     val favoriteCategoryName: String = "\u2605 Favorites",
     val fullLibraryCategoryName: String = "__full_library__",
     val libraryLensRows: Map<SeriesLibraryLens, List<Series>> = emptyMap(),
+    val recommendedSeries: Series? = null,
     val selectedCategory: String? = null,
     val selectedCategoryItems: List<Series> = emptyList(),
     val selectedCategoryLoadedCount: Int = 0,

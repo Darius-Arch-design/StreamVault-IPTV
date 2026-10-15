@@ -89,6 +89,9 @@ jobs:
             --tests 'com.streamvault.feature.playback.player.PlayerExternalSubtitlePickerLabelTest'
           ./gradlew --console=plain :domain:test --tests 'com.streamvault.domain.usecase.SearchContentTest'
           ./gradlew --console=plain :data:testDebugUnitTest \
+            --tests 'com.streamvault.data.sync.SyncManagerTest.sync_stalker_does_not_restart_pending_index_when_category_shell_is_fresh' \
+            --tests 'com.streamvault.data.sync.SyncManagerTest.sync_stalker_rechecks_bulk_when_cached_category_mapping_came_from_old_parser' \
+            --tests 'com.streamvault.data.sync.SyncManagerTest.sync_stalker_falls_back_when_bulk_channels_have_no_category_ids' \
             --tests 'com.streamvault.data.remote.stalker.StalkerProviderTest' \
             --tests 'com.streamvault.data.remote.stalker.OkHttpStalkerApiServiceTest' \
             --tests 'com.streamvault.data.repository.SearchRepositoryImplTest' \

@@ -39,6 +39,9 @@ jobs:
         run: |
           ./gradlew --console=plain :data:testDebugUnitTest \
             --tests 'com.streamvault.data.sync.SyncManagerTest.sync_stalker_keeps_large_interrupted_bulk_import_without_refetching_every_category' \
+            --tests 'com.streamvault.data.sync.SyncManagerTest.sync_stalker_does_not_restart_pending_index_when_category_shell_is_fresh' \
+            --tests 'com.streamvault.data.sync.SyncManagerTest.sync_stalker_rechecks_bulk_when_cached_category_mapping_came_from_old_parser' \
+            --tests 'com.streamvault.data.sync.SyncManagerTest.sync_stalker_falls_back_when_bulk_channels_have_no_category_ids' \
             --tests 'com.streamvault.data.sync.ProviderSyncWorkerTest.failed Stalker continuation keeps its playable bootstrap catalog active'
       - name: Compile subtitle account settings
         run: ./gradlew --console=plain :feature:settings:compileDebugKotlin

@@ -21,7 +21,7 @@ Built for Android TV first, StreamVault focuses on the things generic IPTV apps 
 - Stalker onboarding can show a Live TV preview while the full catalog and guide continue syncing in the background; sync checkpoints support recovery after app restarts.
 - The Home dashboard recommends movies and series based on viewing activity.
 - Titlovi.com subtitles are available for movies and series episodes after configuring an eligible account under **Settings → Playback → Subtitles → Titlovi.com account**. Downloaded subtitles remain available and are reapplied after playback recovers from buffering.
-- Automatic Titlovi.com EX-YU subtitles are skipped when a matching embedded subtitle track is available, preventing duplicate captions.
+- If a movie already has embedded or burned-in captions, downloaded Titlovi.com subtitles can be switched off in the player.
 - QR-based provider setup transfers playlist details from a phone on the same local network and asks for confirmation on the phone.
 - Update settings hide the installer after the latest release is already installed, and About subpages open at the top so app and build details are visible.
 - This beta is built from `develop` and uses the separate `com.streamvault.app.beta` package for testing on Android TV.

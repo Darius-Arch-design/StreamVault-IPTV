@@ -171,7 +171,7 @@ private fun isExYuSubtitleDescriptor(value: String): Boolean {
     val label = normalized.replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
     val tokens = label.split(Regex("\\s+")).toSet()
     return tokens.any { it in EX_YU_SUBTITLE_LANGUAGE_CODES } ||
-        EX_YU_SUBTITLE_LANGUAGE_LABELS.any(label::contains) ||
+        EX_YU_SUBTITLE_LANGUAGE_LABELS.any { marker -> label.contains(marker) } ||
         "bcs" in tokens
 }
 

@@ -668,7 +668,7 @@ private fun DestinationRail(
                 RailButton(
                     destination = destination,
                     selected = currentDestinationId.startsWith(destination.id),
-                    modifier = Modifier.focusRequester(requester),
+                    focusRequester = requester,
                     onClick = {
                         if (!currentDestinationId.startsWith(destination.id)) {
                             onDestinationSelected(destination.id)
@@ -684,11 +684,11 @@ private fun DestinationRail(
 private fun RailButton(
     destination: UiDestination,
     selected: Boolean,
+    focusRequester: FocusRequester,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val focusRequester = remember { FocusRequester() }
     val scale by animateFloatAsState(
         targetValue = if (isFocused) FocusSpec.FocusedScale else 1f,
         animationSpec = AppMotion.FocusSpec,

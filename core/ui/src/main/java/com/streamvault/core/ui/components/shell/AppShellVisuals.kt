@@ -99,6 +99,11 @@ fun CoreAppScreenScaffold(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val spacing = LocalAppSpacing.current
+    val focusRequesters = remember(destinations) {
+        destinations.associate { destination -> destination.id to FocusRequester() }
+    }
+    val activeDestinationRequester = findActiveDestination(destinations, currentDestinationId)
+        ?.let { focusRequesters[it.id] }
 
     Box(
         modifier = modifier
@@ -121,6 +126,7 @@ fun CoreAppScreenScaffold(
                 DestinationRail(
                     currentDestinationId = currentDestinationId,
                     destinations = destinations,
+                    focusRequesters = focusRequesters,
                     onDestinationSelected = onDestinationSelected,
                     modifier = Modifier
                         .fillMaxHeight()
@@ -155,6 +161,9 @@ fun CoreAppScreenScaffold(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .focusProperties {
+                                activeDestinationRequester?.let { left = it }
+                            }
                             .padding(contentPadding)
                     ) {
                         content()
@@ -171,6 +180,7 @@ fun CoreAppScreenScaffold(
                     TopNavigationBar(
                         currentDestinationId = currentDestinationId,
                         destinations = destinations,
+                        focusRequesters = focusRequesters,
                         onDestinationSelected = onDestinationSelected,
                         actions = topBarActions,
                         modifier = Modifier.fillMaxWidth()
@@ -195,6 +205,15 @@ fun CoreAppScreenScaffold(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .then(
+                            if (topBarVisible) {
+                                Modifier.focusProperties {
+                                    activeDestinationRequester?.let { up = it }
+                                }
+                            } else {
+                                Modifier
+                            }
+                        )
                         .padding(contentPadding)
                 ) {
                     content()
@@ -247,15 +266,12 @@ fun AppScreenHeader(
 private fun TopNavigationBar(
     currentDestinationId: String,
     destinations: List<UiDestination>,
+    focusRequesters: Map<String, FocusRequester>,
     onDestinationSelected: (String) -> Unit,
     actions: (@Composable RowScope.() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
-    val focusRequesters = remember(destinations) {
-        destinations.associate { destination -> destination.id to FocusRequester() }
-    }
-
     Surface(
         modifier = modifier
             .focusGroup()
@@ -636,14 +652,11 @@ fun ContentMetadataStrip(
 private fun DestinationRail(
     currentDestinationId: String,
     destinations: List<UiDestination>,
+    focusRequesters: Map<String, FocusRequester>,
     onDestinationSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val spacing = LocalAppSpacing.current
-    val focusRequesters = remember(destinations) {
-        destinations.associate { destination -> destination.id to FocusRequester() }
-    }
-
     Box(
         modifier = modifier
             .padding(start = spacing.lg, top = spacing.safeTop, bottom = spacing.safeBottom)

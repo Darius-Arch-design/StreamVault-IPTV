@@ -7,6 +7,7 @@ import com.streamvault.domain.manager.DriveAccount
 import com.streamvault.domain.manager.DriveBackupArtifact
 import com.streamvault.domain.manager.DriveBackupSnapshot
 import com.streamvault.domain.manager.DriveBackupSyncManager
+import com.streamvault.domain.manager.DriveSyncError
 import com.streamvault.domain.manager.DriveSyncStatus
 import com.streamvault.domain.manager.ProviderCredentials
 import com.streamvault.domain.model.Result
@@ -32,6 +33,22 @@ class SettingsDriveBackupActionsTest {
     private val driveManager: DriveBackupSyncManager = mock()
     private val importBackup: ImportBackup = mock()
     private val providerRepository: ProviderRepository = mock()
+
+    @Test
+    fun oauthConfigurationError_explainsPackageAndSigningCertificateRequirement() {
+        assertThat(driveBackupErrorText(DriveSyncError.OAUTH_CONFIGURATION))
+            .contains("package name")
+        assertThat(driveBackupErrorText(DriveSyncError.OAUTH_CONFIGURATION))
+            .contains("SHA-1")
+    }
+
+    @Test
+    fun driveAccessDeniedError_pointsToApiAndScopeConfiguration() {
+        assertThat(driveBackupErrorText(DriveSyncError.ACCESS_DENIED))
+            .contains("Drive API")
+        assertThat(driveBackupErrorText(DriveSyncError.ACCESS_DENIED))
+            .contains("drive.appdata")
+    }
 
     @Test
     fun pushBackup_passesOneCredentialSnapshotAndDoesNotUseLegacySecondUpload() =

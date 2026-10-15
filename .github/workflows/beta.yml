@@ -86,7 +86,7 @@ jobs:
             --tests 'com.streamvault.player.ExternalSubtitlePlaybackTest'
           ./gradlew --console=plain :feature:playback:testDebugUnitTest \
             --tests 'com.streamvault.feature.playback.player.PlayerExternalSubtitleCoordinatorTest' \
-            --tests 'com.streamvault.feature.playback.player.PlayerExternalSubtitlePickerLabelTest' \\
+            --tests 'com.streamvault.feature.playback.player.PlayerExternalSubtitlePickerLabelTest' \
             --tests 'com.streamvault.feature.playback.player.PlayerAutomaticSubtitlePolicyTest'
           ./gradlew --console=plain :domain:test --tests 'com.streamvault.domain.usecase.SearchContentTest'
           ./gradlew --console=plain :data:testDebugUnitTest \

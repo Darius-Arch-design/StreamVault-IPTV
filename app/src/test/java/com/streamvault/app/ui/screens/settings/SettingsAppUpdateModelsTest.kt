@@ -9,6 +9,7 @@ import com.streamvault.feature.settings.api.SettingsUpdateActionState
 import com.streamvault.feature.settings.api.SettingsUpdateDownloadStatus
 import com.streamvault.feature.settings.presentation.AppUpdateUiModel
 import com.streamvault.feature.settings.presentation.latestActionState
+import com.streamvault.feature.settings.presentation.shouldShowUpdateDownloadAction
 import org.junit.Test
 
 class SettingsAppUpdateModelsTest {
@@ -129,6 +130,20 @@ class SettingsAppUpdateModelsTest {
         )
 
         assertThat(update.latestActionState()).isEqualTo(SettingsUpdateActionState.INSTALL_LATEST)
+    }
+
+    @Test
+    fun cachedInstallerIsHiddenWhenLatestReleaseIsAlreadyInstalled() {
+        val update = AppUpdateUiModel(
+            latestVersionName = "1.0.12",
+            downloadUrl = "https://example.com/StreamVault.apk",
+            isUpdateAvailable = false,
+            downloadStatus = SettingsUpdateDownloadStatus.DOWNLOADED,
+            downloadedVersionName = "1.0.12"
+        )
+
+        assertThat(update.latestActionState()).isEqualTo(SettingsUpdateActionState.NONE)
+        assertThat(shouldShowUpdateDownloadAction(update)).isFalse()
     }
 
     @Test

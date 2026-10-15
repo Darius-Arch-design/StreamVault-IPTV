@@ -2,6 +2,28 @@
 
 All notable product changes are recorded in this document.
 
+## [1.0.19-beta.000018.01] - 2026-10-15 (build 40)
+
+This section summarizes the current beta; the stable 1.0.19 entry below remains the stable release notes.
+
+### Added
+
+- Added activity-based movie and series recommendations to the Home dashboard.
+- Added Titlovi.com EX-YU subtitle search and download for movies and series episodes.
+- Added QR-based provider setup from a phone, with confirmation on the phone before transferring details.
+
+### Improved
+
+- Improved subtitle names in the player menu and retained downloaded subtitles after playback recovery from brief buffering.
+- Improved Xtream and Stalker catalog loading with bounded parallel requests and adaptive throttling.
+- Reused the saved Stalker catalog after an app restart so it opens without requiring a manual sync.
+
+### Fixed
+
+- Fixed Stalker title search and movie category browsing so results and categories display as expected.
+- Fixed the updater showing an already-installed package after installation.
+- Fixed About subpages opening below the app and build information.
+
 ## [1.0.19]
 
 ### Added

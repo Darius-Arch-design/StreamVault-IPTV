@@ -2,7 +2,9 @@ package com.streamvault.data.manager
 
 import android.content.Context
 import android.util.Log
+import com.google.android.gms.auth.GoogleAuthException
 import com.google.android.gms.auth.GoogleAuthUtil
+import com.google.android.gms.auth.UserRecoverableAuthException
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -25,6 +27,7 @@ import com.streamvault.domain.manager.DriveSyncStatus
 import com.streamvault.domain.manager.ProviderCredentials
 import com.streamvault.domain.model.Result
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,6 +58,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val GOOGLE_DRIVE_API_BASE_URL = "https://www.googleapis.com"
+private const val GOOGLE_SIGN_IN_DEVELOPER_ERROR = 10
+private const val GOOGLE_SIGN_IN_CANCELLED = 12501
+
+internal fun driveSignInErrorForStatus(statusCode: Int): String = when (statusCode) {
+    GOOGLE_SIGN_IN_DEVELOPER_ERROR -> DriveSyncError.OAUTH_CONFIGURATION
+    GOOGLE_SIGN_IN_CANCELLED -> DriveSyncError.SIGN_IN_CANCELLED
+    else -> DriveSyncError.AUTH_FAILED
+}
 
 private fun buildDefaultDriveHttpClient(): OkHttpClient = OkHttpClient.Builder()
     .connectTimeout(20, TimeUnit.SECONDS)
@@ -172,31 +183,36 @@ class GoogleDriveBackupSyncManager private constructor(
 
     override suspend fun completeSignIn(signInData: Any?): Result<DriveAccount> =
         withContext(Dispatchers.IO) {
+            val data = signInData as? android.content.Intent
+            if (data == null) {
+                _authState.value = DriveAuthState.SignedOut
+                return@withContext Result.Error(DriveSyncError.SIGN_IN_CANCELLED)
+            }
             try {
-                val data = signInData as? android.content.Intent
-                Log.d("DriveSync", "completeSignIn intent=$data extras=${data?.extras}")
                 val account = GoogleSignIn.getSignedInAccountFromIntent(data).awaitTask()
-                Log.d("DriveSync", "account=$account email=${account?.email} grantedScopes=${account?.grantedScopes}")
                 if (account == null) {
-                    Log.w("DriveSync", "completeSignIn: account is null (user cancelled or sign-in failed silently)")
+                    Log.w("DriveSync", "completeSignIn returned no account")
                     _authState.value = DriveAuthState.SignedOut
                     return@withContext Result.Error(DriveSyncError.AUTH_FAILED)
                 }
                 if (!hasAppDataScope(account)) {
-                    Log.w("DriveSync", "completeSignIn: drive.appdata scope NOT granted, grantedScopes=${account.grantedScopes}")
+                    Log.w("DriveSync", "completeSignIn did not receive the Drive appData permission")
                     _authState.value = DriveAuthState.SignedOut
-                    return@withContext Result.Error(DriveSyncError.AUTH_FAILED)
+                    return@withContext Result.Error(DriveSyncError.SCOPE_NOT_GRANTED)
                 }
                 val driveAccount = account.toDriveAccount()
-                Log.d("DriveSync", "completeSignIn: SUCCESS for ${driveAccount.email}")
+                Log.d("DriveSync", "completeSignIn succeeded")
                 _authState.value = DriveAuthState.SignedIn(driveAccount)
                 Result.Success(driveAccount)
             } catch (apiError: ApiException) {
-                Log.e("DriveSync", "completeSignIn: ApiException statusCode=${apiError.statusCode} message=${apiError.message}", apiError)
+                val errorCode = driveSignInErrorForStatus(apiError.statusCode)
+                Log.w("DriveSync", "completeSignIn failed with Google status ${apiError.statusCode}")
                 _authState.value = DriveAuthState.SignedOut
-                Result.Error(DriveSyncError.AUTH_FAILED, apiError)
-            } catch (t: Throwable) {
-                Log.e("DriveSync", "completeSignIn: Throwable", t)
+                Result.Error(errorCode, apiError)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (t: Exception) {
+                Log.e("DriveSync", "completeSignIn failed (${t.javaClass.simpleName})")
                 _authState.value = DriveAuthState.SignedOut
                 Result.Error(DriveSyncError.AUTH_FAILED, t)
             }
@@ -574,20 +590,30 @@ class GoogleDriveBackupSyncManager private constructor(
      * Synchronous OAuth2 token retrieval. Must be called off the main thread.
      * The token is never logged.
      */
-    private fun fetchAccessToken(account: GoogleSignInAccount): String? = try {
-        val androidAccount = account.account ?: return null
-        GoogleAuthUtil.getToken(context, androidAccount, "oauth2:$SCOPE_APP_DATA")
-    } catch (t: Throwable) {
-        null
+    private fun fetchAccessToken(account: GoogleSignInAccount): Result<String> {
+        val androidAccount = account.account
+            ?: return driveError(DriveSyncError.ACCOUNT_UNAVAILABLE)
+        return try {
+            val token = GoogleAuthUtil.getToken(context, androidAccount, "oauth2:$SCOPE_APP_DATA")
+            if (token.isBlank()) driveError(DriveSyncError.AUTH_FAILED) else Result.Success(token)
+        } catch (recoverable: UserRecoverableAuthException) {
+            driveError(DriveSyncError.SCOPE_NOT_GRANTED, recoverable)
+        } catch (network: IOException) {
+            driveError(DriveSyncError.NETWORK, network)
+        } catch (auth: GoogleAuthException) {
+            driveError(DriveSyncError.AUTH_FAILED, auth)
+        } catch (configuration: SecurityException) {
+            driveError(DriveSyncError.OAUTH_CONFIGURATION, configuration)
+        } catch (failure: Exception) {
+            driveError(DriveSyncError.AUTH_FAILED, failure)
+        }
     }
 
     private fun accessTokenResult(): Result<String> {
         fixedAccessToken?.let { return Result.Success(it) }
         val account = requireSignedInAccount()
             ?: return driveError(DriveSyncError.NOT_SIGNED_IN)
-        val token = fetchAccessToken(account)
-            ?: return driveError(DriveSyncError.AUTH_FAILED)
-        return Result.Success(token)
+        return fetchAccessToken(account)
     }
 
     private fun driveError(code: String, exception: Throwable? = null): Result.Error {
@@ -597,10 +623,10 @@ class GoogleDriveBackupSyncManager private constructor(
 
     private fun driveHttpError(exception: IOException): Result.Error {
         val statusCode = (exception as? DriveHttpException)?.statusCode
-        val code = if (statusCode == 401 || statusCode == 403) {
-            DriveSyncError.AUTH_FAILED
-        } else {
-            DriveSyncError.NETWORK
+        val code = when (statusCode) {
+            401 -> DriveSyncError.AUTH_FAILED
+            403 -> DriveSyncError.ACCESS_DENIED
+            else -> DriveSyncError.NETWORK
         }
         return driveError(code, exception)
     }

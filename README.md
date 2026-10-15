@@ -15,12 +15,14 @@ It is designed for large playlists, remote-friendly browsing, fast provider swit
 
 Built for Android TV first, StreamVault focuses on the things generic IPTV apps usually get wrong: D-pad navigation, quick channel movement, large-library organization, and a player that still feels good to use from the couch. Phone and tablet installs are also supported, but the primary UX target is TV.
 
-## Current Beta: 1.0.19 (build 000010.01; tag v1.0.19-beta.000010.01+32)
+## Current Beta: 1.0.19-beta.000017.01 (build 39; tag `v1.0.19-beta.000017.01+39`)
 
-- Stalker sync retries the bulk Live TV catalog path when older cached data incorrectly marked category mapping as incomplete. It validates channel categories against the provider's actual categories and falls back to category-by-category retrieval when the bulk response cannot be mapped reliably.
-- Movie and series catalog hydration checkpoints are preserved across app restarts, avoiding unnecessary category-shell refreshes and allowing background indexing to resume.
-- Movies and series episodes can automatically load subtitles from Titlovi.com, trying Croatian, then Bosnian, then Serbian. Add your Titlovi.com account under **Settings → Playback → Subtitles → Titlovi.com account**; availability depends on that service and your account access. Live TV is not covered by this integration.
-- Downloaded Titlovi.com subtitles are retained and reattached when playback recovers from buffering or renews its playback URL. The player menu also shows a cleaned-up subtitle release name.
+- Xtream and Stalker catalog loading uses bounded parallel requests, adaptive throttling, and category fallback to improve responsiveness on large or slower portals.
+- Stalker onboarding can show a Live TV preview while the full catalog and guide continue syncing in the background; sync checkpoints support recovery after app restarts.
+- The Home dashboard recommends movies and series based on viewing activity.
+- Titlovi.com subtitles are available for movies and series episodes after configuring an eligible account under **Settings → Playback → Subtitles → Titlovi.com account**. Downloaded subtitles remain available and are reapplied after playback recovers from buffering.
+- Automatic Titlovi.com EX-YU subtitles are skipped when a matching embedded subtitle track is available, preventing duplicate captions.
+- QR-based provider setup transfers playlist details from a phone on the same local network and asks for confirmation on the phone.
 - This beta is built from `develop` and uses the separate `com.streamvault.app.beta` package for testing on Android TV.
 
 Installable packages, when available, are published through the repository's GitHub Releases section, not linked directly from this README.

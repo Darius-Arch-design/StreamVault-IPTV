@@ -13,7 +13,11 @@ on:
       - 'domain/src/main/java/com/streamvault/domain/repository/ExternalSubtitleRepository.kt'
       - 'data/src/main/java/com/streamvault/data/repository/TitloviExternalSubtitleRepository.kt'
       - 'data/src/test/java/com/streamvault/data/repository/TitloviExternalSubtitleRepositoryTest.kt'
+      - 'data/src/main/java/com/streamvault/data/manager/GoogleDriveBackupSyncManager.kt'
+      - 'data/src/test/java/com/streamvault/data/manager/GoogleDriveBackupSyncManagerTest.kt'
+      - 'domain/src/main/java/com/streamvault/domain/manager/DriveBackupSyncManager.kt'
       - 'feature/settings/src/main/java/com/streamvault/feature/settings/presentation/**'
+      - 'feature/settings/src/test/java/com/streamvault/feature/settings/presentation/SettingsDriveBackupActionsTest.kt'
       - 'feature/settings/src/main/res/values/strings.xml'
       - 'feature/playback/src/test/java/com/streamvault/feature/playback/player/PlayerExternalSubtitleCoordinatorTest.kt'
       - '.github/workflows/codex-feedback-check.yml'
@@ -51,3 +55,9 @@ jobs:
             --tests 'com.streamvault.data.repository.TitloviExternalSubtitleRepositoryTest'
           ./gradlew --console=plain :feature:playback:testDebugUnitTest \
             --tests 'com.streamvault.feature.playback.player.PlayerExternalSubtitleCoordinatorTest'
+      - name: Run Google Drive backup tests
+        run: |
+          ./gradlew --console=plain :data:testDebugUnitTest \
+            --tests 'com.streamvault.data.manager.GoogleDriveBackupSyncManagerTest'
+          ./gradlew --console=plain :feature:settings:testDebugUnitTest \
+            --tests 'com.streamvault.feature.settings.presentation.SettingsDriveBackupActionsTest'

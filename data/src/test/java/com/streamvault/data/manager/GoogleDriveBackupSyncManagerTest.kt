@@ -68,6 +68,16 @@ class GoogleDriveBackupSyncManagerTest {
     }
 
     @Test
+    fun googleSignInDeveloperError_isReportedAsOAuthConfigurationProblem() {
+        assertThat(driveSignInErrorForStatus(10)).isEqualTo(DriveSyncError.OAUTH_CONFIGURATION)
+    }
+
+    @Test
+    fun googleSignInCancellation_isNotReportedAsAnAuthenticationFailure() {
+        assertThat(driveSignInErrorForStatus(12501)).isEqualTo(DriveSyncError.SIGN_IN_CANCELLED)
+    }
+
+    @Test
     fun pushBackup_uploadsOneBundleContainingMatchingCredentials() = runTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
         enqueueFileList(emptyList())
@@ -187,6 +197,18 @@ class GoogleDriveBackupSyncManagerTest {
         assertThat(result).isInstanceOf(Result.Error::class.java)
         assertThat((result as Result.Error).message).isEqualTo(DriveSyncError.AUTH_FAILED)
         assertThat(manager.syncStatus.value.lastErrorMessage).isEqualTo(DriveSyncError.AUTH_FAILED)
+    }
+
+    @Test
+    fun forbiddenLookup_isClassifiedAsDriveAccessDeniedAndRecorded() = runTest {
+        server.enqueue(MockResponse().setResponseCode(403).setBody("{}"))
+
+        val manager = manager()
+        val result = manager.pullBackup()
+
+        assertThat(result).isInstanceOf(Result.Error::class.java)
+        assertThat((result as Result.Error).message).isEqualTo(DriveSyncError.ACCESS_DENIED)
+        assertThat(manager.syncStatus.value.lastErrorMessage).isEqualTo(DriveSyncError.ACCESS_DENIED)
     }
 
     @Test

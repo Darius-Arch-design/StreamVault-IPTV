@@ -7,6 +7,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -69,6 +70,7 @@ class CoreAppScreenScaffoldTest {
         )
     }
 
+    @OptIn(ExperimentalTestApi::class)
     private fun assertFocusReturnsToCurrentDestination(
         chrome: NavigationChrome,
         direction: Key
@@ -100,7 +102,8 @@ class CoreAppScreenScaffoldTest {
             .onNodeWithTag("content-target")
             .performSemanticsAction(SemanticsActions.RequestFocus)
         composeRule.onNodeWithTag("content-target").performKeyInput {
-            pressKey(direction)
+            keyDown(direction)
+            keyUp(direction)
         }
         composeRule
             .onNode(hasText("Movies") and hasClickAction())

@@ -460,7 +460,8 @@ internal class StalkerCatalogSyncExecutor(
         val batch = ArrayList<Channel>(FALLBACK_STAGE_BATCH_SIZE)
         var stagedSessionId: Long? = null
         var acceptedCount = 0
-        var bulkRowsWithResolvedCategories = 0
+        val preferredCategoryIds = preferredCategories.orEmpty().map { it.categoryId }.toHashSet()
+        val bulkResolvedCategoryStreamIds = HashSet<Long>()
 
         suspend fun flushBatch() {
             if (batch.isEmpty()) return
@@ -537,7 +538,7 @@ internal class StalkerCatalogSyncExecutor(
                     api.streamLiveStreams(maxChannels = maxChannels) { channel ->
                         markBulkProgress()
                         if (channel.categoryId != null && channel.categoryId in hiddenLiveCategoryIds && channel.categoryId !in requiredHiddenLiveCategoryIds) return@streamLiveStreams
-                        if (channel.categoryId != null) bulkRowsWithResolvedCategories++
+                        channel.categoryId?.takeIf { it in preferredCategoryIds }?.let { bulkResolvedCategoryStreamIds += channel.streamId }
                         if (maxChannels == null || acceptedCount + batch.size < maxChannels) batch += channel
                         if (batch.size >= FALLBACK_STAGE_BATCH_SIZE) {
                             flushBatch()
@@ -549,7 +550,7 @@ internal class StalkerCatalogSyncExecutor(
             when (streamResult) {
                 is Result.Success -> {
                     flushBatch()
-                    val hasCategoryMapping = acceptedCount == 0 || bulkRowsWithResolvedCategories > 0
+                    val hasCategoryMapping = acceptedCount == 0 || bulkResolvedCategoryStreamIds.size.toLong() * 5L >= acceptedCount.toLong() * 4L
                     api.recordBulkLiveCapability(true, hasCategoryMapping)
                     if (hasCategoryMapping || preferredCategories.isNullOrEmpty() || maxChannels != null) {
                         return finalizeStagedImport()
@@ -578,7 +579,7 @@ internal class StalkerCatalogSyncExecutor(
 
             if (maxChannels == null &&
                 acceptedCount + batch.size >= STALKER_MIN_RECOVERABLE_BULK_CHANNELS &&
-                bulkRowsWithResolvedCategories >= (acceptedCount + batch.size) * 4 / 5
+                bulkResolvedCategoryStreamIds.size >= (acceptedCount + batch.size) * 4 / 5
             ) {
                 flushBatch()
                 Log.w(

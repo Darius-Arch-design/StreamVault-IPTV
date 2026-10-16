@@ -64,7 +64,7 @@ public fun SettingsNavigationRail(
     LaunchedEffect(selectedCategory, compact) {
         val categoryIndex = SettingsCategory.entries.indexOfFirst { it.legacyId == selectedCategory }
         if (categoryIndex >= 0) {
-            val lazyItemIndex = categoryIndex + 1 // The first item is the navigation header.
+            val lazyItemIndex = categoryIndex + if (compact) 0 else 1 // Only the wide rail has a header list item.
             if (categoryListState.layoutInfo.visibleItemsInfo.none { it.index == lazyItemIndex }) {
                 categoryListState.scrollToItem(lazyItemIndex)
             }

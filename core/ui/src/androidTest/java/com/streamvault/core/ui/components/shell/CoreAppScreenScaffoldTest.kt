@@ -90,18 +90,31 @@ class CoreAppScreenScaffoldTest {
                     title = "Movies",
                     navigationChrome = chrome,
                     showScreenHeader = false,
-                    topBarActions = {
-                        AppTopBarCloseAction(onClick = {}, contentDescription = "Exit app")
+                    topBarActions = if (chrome == NavigationChrome.TopBar) {
+                        {
+                            AppTopBarCloseAction(onClick = {}, contentDescription = "Exit app")
+                        }
+                    } else {
+                        null
                     }
                 ) {
-                    LazyRow(modifier = Modifier.fillMaxSize().focusGroup()) {
-                        item {
-                            Surface(
-                                onClick = {},
-                                modifier = Modifier.testTag("content-target")
-                            ) {
-                                Text("Movie card")
+                    if (chrome == NavigationChrome.TopBar) {
+                        LazyRow(modifier = Modifier.fillMaxSize().focusGroup()) {
+                            item {
+                                Surface(
+                                    onClick = {},
+                                    modifier = Modifier.testTag("content-target")
+                                ) {
+                                    Text("Movie card")
+                                }
                             }
+                        }
+                    } else {
+                        Surface(
+                            onClick = {},
+                            modifier = Modifier.testTag("content-target")
+                        ) {
+                            Text("Content target")
                         }
                     }
                 }

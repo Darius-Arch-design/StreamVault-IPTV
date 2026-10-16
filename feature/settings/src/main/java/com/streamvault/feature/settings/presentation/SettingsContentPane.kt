@@ -170,13 +170,12 @@ public fun SettingsContentPane(
                 val targetId = "page.${requireNotNull(page).name.lowercase()}.first"
                 val intent = focusCoordinator.next(targetId)
                 withFrameNanos { }
-                if (focusCoordinator.canApply(intent, targetId)) {
-                    pageHeaderFocus.requestFocus()
-                    withFrameNanos { }
-                    if (focusCoordinator.canApply(intent, targetId)) {
-                        focusManager.moveFocus(FocusDirection.Down)
-                    }
-                }
+                requestSettingsPageEntryFocus(
+                    page = page,
+                    pageHeaderFocus = pageHeaderFocus,
+                    focusManager = focusManager,
+                    canApplyIntent = { focusCoordinator.canApply(intent, targetId) },
+                )
             }
             page == null && lastPage != null && overviewEntryPlaced -> {
                 val targetId = "page.${lastPage!!.name.lowercase()}"
@@ -475,6 +474,20 @@ public fun SettingsContentPane(
                 }
             }
         }
+    }
+}
+
+internal suspend fun requestSettingsPageEntryFocus(
+    page: SettingsPage?,
+    pageHeaderFocus: FocusRequester,
+    focusManager: androidx.compose.ui.focus.FocusManager,
+    canApplyIntent: () -> Boolean,
+) {
+    if (!canApplyIntent()) return
+    pageHeaderFocus.requestFocus()
+    withFrameNanos { }
+    if (canApplyIntent() && page != SettingsPage.APP_INFO) {
+        focusManager.moveFocus(FocusDirection.Down)
     }
 }
 

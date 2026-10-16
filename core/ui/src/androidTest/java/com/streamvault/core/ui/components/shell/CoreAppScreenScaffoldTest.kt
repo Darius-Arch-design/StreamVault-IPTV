@@ -1,5 +1,8 @@
 package com.streamvault.core.ui.components.shell
 
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.ui.Modifier
@@ -86,13 +89,20 @@ class CoreAppScreenScaffoldTest {
                     onDestinationSelected = {},
                     title = "Movies",
                     navigationChrome = chrome,
-                    showScreenHeader = false
+                    showScreenHeader = false,
+                    topBarActions = {
+                        AppTopBarCloseAction(onClick = {}, contentDescription = "Exit app")
+                    }
                 ) {
-                    Surface(
-                        onClick = {},
-                        modifier = Modifier.testTag("content-target")
-                    ) {
-                        Text("Content target")
+                    LazyRow(modifier = Modifier.fillMaxSize().focusGroup()) {
+                        item {
+                            Surface(
+                                onClick = {},
+                                modifier = Modifier.testTag("content-target")
+                            ) {
+                                Text("Movie card")
+                            }
+                        }
                     }
                 }
             }

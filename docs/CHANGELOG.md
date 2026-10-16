@@ -16,7 +16,6 @@ All notable product changes are recorded in this document.
 
 - Improved Xtream and Stalker catalog loading with bounded parallel requests and adaptive throttling.
 - Reused the saved Stalker catalog after app restarts so it opens without requiring a manual sync.
-- Kept downloaded subtitles available and reapplied them after playback recovers from buffering.
 - Improved subtitle labels in the player menu, Android TV navigation, and provider setup feedback.
 
 ### Fixed

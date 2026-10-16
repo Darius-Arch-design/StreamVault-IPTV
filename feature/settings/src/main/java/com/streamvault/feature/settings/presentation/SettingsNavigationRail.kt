@@ -3,6 +3,7 @@ package com.streamvault.feature.settings.presentation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,7 +59,17 @@ public fun SettingsNavigationRail(
     compact: Boolean = LocalConfiguration.current.screenWidthDp < 600
 ) {
     val colors = SettingsDesignTokens.colors(AppColors.current)
+    val categoryListState = rememberLazyListState()
     var selectedEntryPlaced by remember(compact, selectedCategory) { mutableStateOf(false) }
+    LaunchedEffect(selectedCategory, compact) {
+        val categoryIndex = SettingsCategory.entries.indexOfFirst { it.legacyId == selectedCategory }
+        if (categoryIndex >= 0) {
+            val lazyItemIndex = categoryIndex + 1 // The first item is the navigation header.
+            if (categoryListState.layoutInfo.visibleItemsInfo.none { it.index == lazyItemIndex }) {
+                categoryListState.scrollToItem(lazyItemIndex)
+            }
+        }
+    }
     LaunchedEffect(compact, selectedCategory, selectedEntryPlaced) {
         if (compact && selectedEntryPlaced) focusRequester.requestFocus()
     }
@@ -108,6 +119,7 @@ public fun SettingsNavigationRail(
                 searchModifier = searchModifier,
             )
             LazyColumn(
+                state = categoryListState,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentPadding = PaddingValues(top = SettingsDesignTokens.space12, bottom = SettingsDesignTokens.space24),
                 verticalArrangement = Arrangement.spacedBy(SettingsDesignTokens.space4),
@@ -117,6 +129,7 @@ public fun SettingsNavigationRail(
         }
     } else {
         LazyColumn(
+            state = categoryListState,
             modifier = Modifier.width(SettingsDesignTokens.railWidth).fillMaxHeight().background(colors.canvas),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)

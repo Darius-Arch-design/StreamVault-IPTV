@@ -15,7 +15,7 @@ It is designed for large playlists, remote-friendly browsing, fast provider swit
 
 Built for Android TV first, StreamVault focuses on the things generic IPTV apps usually get wrong: D-pad navigation, quick channel movement, large-library organization, and a player that still feels good to use from the couch. Phone and tablet installs are also supported, but the primary UX target is TV.
 
-## Current Beta: 1.0.19-beta.000018.01 (build 40; tag `v1.0.19-beta.000018.01+40`)
+## Current Beta: 1.0.19-beta.000025.01 (build 47; tag `v1.0.19-beta.000025.01+47`)
 
 - Xtream and Stalker catalog loading uses bounded parallel requests, adaptive throttling, and category fallback to improve responsiveness on large or slower portals.
 - Stalker onboarding can show a Live TV preview while the full catalog and guide continue syncing in the background; sync checkpoints support recovery after app restarts.
@@ -24,6 +24,7 @@ Built for Android TV first, StreamVault focuses on the things generic IPTV apps 
 - If a movie already has embedded or burned-in captions, downloaded Titlovi.com subtitles can be switched off in the player.
 - QR-based provider setup transfers playlist details from a phone on the same local network and asks for confirmation on the phone.
 - Update settings hide the installer after the latest release is already installed, and About subpages open at the top so app and build details are visible.
+- Fixed Android TV navigation focus returning to Home after opening a section from the top menu.
 - This beta is built from `develop` and uses the separate `com.streamvault.app.beta` package for testing on Android TV.
 
 Installable packages, when available, are published through the repository's GitHub Releases section, not linked directly from this README.

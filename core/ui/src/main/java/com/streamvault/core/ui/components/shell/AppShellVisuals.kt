@@ -213,8 +213,8 @@ fun CoreAppScreenScaffold(
                                     .focusProperties {
                                         activeDestinationRequester?.let { destinationRequester ->
                                             up = destinationRequester
-                                            onExit = {
-                                                if (focusDirection == FocusDirection.Up &&
+                                            onExit = { direction ->
+                                                if (direction == FocusDirection.Up &&
                                                     destinationRequester.requestFocus()
                                                 ) {
                                                     cancelFocusChange()

@@ -15,6 +15,8 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -39,6 +41,7 @@ internal fun SettingsLocalHeader(
     onBack: (() -> Unit)?,
     onSearch: (() -> Unit)? = null,
     onExit: (() -> Unit)? = null,
+    upFocusRequester: FocusRequester? = null,
     searchModifier: Modifier = Modifier,
     backModifier: Modifier = Modifier,
 ) {
@@ -53,7 +56,9 @@ internal fun SettingsLocalHeader(
         if (onBack != null && parentTitle != null) {
             TvClickableSurface(
                 onClick = onBack,
-                modifier = backModifier,
+                modifier = backModifier.focusProperties {
+                    up = upFocusRequester ?: FocusRequester.Cancel
+                },
                 shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(SettingsDesignTokens.groupRadius)),
                 colors = ClickableSurfaceDefaults.colors(
                     containerColor = colors.groupSurface,

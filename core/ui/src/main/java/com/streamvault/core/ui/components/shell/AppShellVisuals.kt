@@ -33,7 +33,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -80,6 +82,7 @@ data class UiDestination(
     val icon: ImageVector
 )
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun CoreAppScreenScaffold(
     currentDestinationId: String,
@@ -98,6 +101,11 @@ fun CoreAppScreenScaffold(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val spacing = LocalAppSpacing.current
+    val focusRequesters = remember(destinations) {
+        destinations.associate { destination -> destination.id to FocusRequester() }
+    }
+    val activeDestinationRequester = findActiveDestination(destinations, currentDestinationId)
+        ?.let { focusRequesters[it.id] }
 
     Box(
         modifier = modifier
@@ -120,6 +128,7 @@ fun CoreAppScreenScaffold(
                 DestinationRail(
                     currentDestinationId = currentDestinationId,
                     destinations = destinations,
+                    focusRequesters = focusRequesters,
                     onDestinationSelected = onDestinationSelected,
                     modifier = Modifier
                         .fillMaxHeight()
@@ -154,6 +163,9 @@ fun CoreAppScreenScaffold(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .focusProperties {
+                                activeDestinationRequester?.let { left = it }
+                            }
                             .padding(contentPadding)
                     ) {
                         content()
@@ -170,6 +182,7 @@ fun CoreAppScreenScaffold(
                     TopNavigationBar(
                         currentDestinationId = currentDestinationId,
                         destinations = destinations,
+                        focusRequesters = focusRequesters,
                         onDestinationSelected = onDestinationSelected,
                         actions = topBarActions,
                         modifier = Modifier.fillMaxWidth()
@@ -194,6 +207,26 @@ fun CoreAppScreenScaffold(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .then(
+                            if (topBarVisible) {
+                                Modifier
+                                    .focusProperties {
+                                        activeDestinationRequester?.let { destinationRequester ->
+                                            up = destinationRequester
+                                            onExit = {
+                                                if (requestedFocusDirection == FocusDirection.Up &&
+                                                    destinationRequester.requestFocus()
+                                                ) {
+                                                    cancelFocusChange()
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .focusGroup()
+                            } else {
+                                Modifier
+                            }
+                        )
                         .padding(contentPadding)
                 ) {
                     content()
@@ -246,20 +279,24 @@ fun AppScreenHeader(
 private fun TopNavigationBar(
     currentDestinationId: String,
     destinations: List<UiDestination>,
+    focusRequesters: Map<String, FocusRequester>,
     onDestinationSelected: (String) -> Unit,
     actions: (@Composable RowScope.() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
-    val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
-
     Surface(
-        modifier = modifier.focusProperties {
-            onEnter = {
-                val activeItem = findActiveDestination(destinations, currentDestinationId)
-                focusRequesters[activeItem?.id] ?: FocusRequester.Default
-            }
-        },
+        modifier = modifier
+            .focusGroup()
+            .focusProperties {
+                onEnter = {
+                    val activeItem = findActiveDestination(destinations, currentDestinationId)
+                    val requester = activeItem?.let { focusRequesters[it.id] }
+                    if (requester?.requestFocus() == true) {
+                        cancelFocusChange()
+                    }
+                }
+            },
         shape = RoundedCornerShape(18.dp),
         colors = SurfaceDefaults.colors(containerColor = AppColors.Surface.copy(alpha = 0.9f))
     ) {
@@ -286,7 +323,7 @@ private fun TopNavigationBar(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 destinations.forEach { destination ->
-                    val requester = focusRequesters.getOrPut(destination.id) { FocusRequester() }
+                    val requester = focusRequesters.getValue(destination.id)
                     TopNavigationButton(
                         destination = destination,
                         selected = currentDestinationId.startsWith(destination.id),
@@ -628,21 +665,24 @@ fun ContentMetadataStrip(
 private fun DestinationRail(
     currentDestinationId: String,
     destinations: List<UiDestination>,
+    focusRequesters: Map<String, FocusRequester>,
     onDestinationSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val spacing = LocalAppSpacing.current
-    val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
-
     Box(
         modifier = modifier
             .padding(start = spacing.lg, top = spacing.safeTop, bottom = spacing.safeBottom)
             .clip(RoundedCornerShape(28.dp))
             .background(Brush.verticalGradient(colors = listOf(AppColors.SurfaceElevated, AppColors.Surface)))
+            .focusGroup()
             .focusProperties {
                 onEnter = {
                     val activeItem = findActiveDestination(destinations, currentDestinationId)
-                    focusRequesters[activeItem?.id] ?: FocusRequester.Default
+                    val requester = activeItem?.let { focusRequesters[it.id] }
+                    if (requester?.requestFocus() == true) {
+                        cancelFocusChange()
+                    }
                 }
             }
     ) {
@@ -656,11 +696,11 @@ private fun DestinationRail(
             Text(text = "TV", style = MaterialTheme.typography.labelSmall, color = AppColors.TextTertiary)
             Spacer(modifier = Modifier.height(10.dp))
             destinations.forEach { destination ->
-                val requester = focusRequesters.getOrPut(destination.id) { FocusRequester() }
+                val requester = focusRequesters.getValue(destination.id)
                 RailButton(
                     destination = destination,
                     selected = currentDestinationId.startsWith(destination.id),
-                    modifier = Modifier.focusRequester(requester),
+                    focusRequester = requester,
                     onClick = {
                         if (!currentDestinationId.startsWith(destination.id)) {
                             onDestinationSelected(destination.id)
@@ -676,11 +716,11 @@ private fun DestinationRail(
 private fun RailButton(
     destination: UiDestination,
     selected: Boolean,
+    focusRequester: FocusRequester,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val focusRequester = remember { FocusRequester() }
     val scale by animateFloatAsState(
         targetValue = if (isFocused) FocusSpec.FocusedScale else 1f,
         animationSpec = AppMotion.FocusSpec,

@@ -471,6 +471,30 @@ class StalkerProviderTest {
     }
 
     @Test
+    fun searchVodPage_keepsMovieWithoutCommandForLazyPlaybackResolution() = runTest {
+        val api = FakeStalkerApiService(
+            profile = StalkerProviderProfile(accountName = "Room"),
+            vodPageItems = listOf(StalkerItemRecord(id = "568068", name = "Movie without cmd"))
+        )
+        val provider = StalkerProvider(
+            providerId = 15,
+            api = api,
+            portalUrl = "https://portal.example.com/c/",
+            macAddress = "00:1A:79:12:34:62",
+            deviceProfile = "MAG250",
+            timezone = "UTC",
+            locale = "en"
+        )
+
+        val result = provider.searchVodPage("Movie", 1) as Result.Success
+        val movie = (result.data.items.single().item as com.streamvault.domain.model.VodCatalogItem.MovieItem).movie
+        val token = StalkerUrlFactory.parseInternalStreamUrl(movie.streamUrl)
+
+        assertThat(movie.name).isEqualTo("Movie without cmd")
+        assertThat(token?.cmd).isEqualTo("/media/568068.mpg")
+    }
+
+    @Test
     fun authenticate_maps_expired_date_to_expired() = runTest {
         val provider = StalkerProvider(
             providerId = 7,

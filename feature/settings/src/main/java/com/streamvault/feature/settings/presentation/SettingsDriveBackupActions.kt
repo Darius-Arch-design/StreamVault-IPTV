@@ -5,6 +5,7 @@ import android.content.Intent
 import android.util.Log
 import com.streamvault.domain.manager.DriveAuthState
 import com.streamvault.domain.manager.DriveBackupSyncManager
+import com.streamvault.domain.manager.DriveSyncError
 import com.streamvault.domain.manager.DriveSyncStatus
 import com.streamvault.domain.model.Result
 import com.streamvault.domain.repository.ProviderRepository
@@ -16,6 +17,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+internal fun driveBackupErrorText(code: String): String = when (code) {
+    DriveSyncError.PLAY_SERVICES_UNAVAILABLE -> "Google Play services are unavailable on this device."
+    DriveSyncError.NOT_SIGNED_IN -> "Sign in to Google Drive first."
+    DriveSyncError.AUTH_FAILED -> "Google authentication failed. Reconnect Google Drive and verify this build's OAuth package name and signing certificate."
+    DriveSyncError.OAUTH_CONFIGURATION -> "Google sign-in is not configured for this app build. Register this APK's exact package name and signing SHA-1."
+    DriveSyncError.SIGN_IN_CANCELLED -> "Google sign-in was canceled."
+    DriveSyncError.SCOPE_NOT_GRANTED -> "Google Drive permission was not granted. Reconnect and allow the drive.appdata permission."
+    DriveSyncError.ACCOUNT_UNAVAILABLE -> "The selected Google account is unavailable. Sign in again on this device."
+    DriveSyncError.ACCESS_DENIED -> "Google Drive denied access. Check that the Drive API is enabled and drive.appdata is allowed."
+    DriveSyncError.NETWORK -> "Could not reach Google Drive. Check the device's internet connection."
+    DriveSyncError.NO_REMOTE_BACKUP -> "No Google Drive backup was found."
+    DriveSyncError.EXPORT_FAILED -> "The local backup could not be prepared."
+    DriveSyncError.IMPORT_FAILED -> "The Google Drive backup could not be read."
+    DriveSyncError.PAYLOAD_TOO_LARGE -> "The Google Drive backup is too large to restore."
+    else -> code
+}
 
 /**
  * Drive backup orchestration helper. Mirrors the [SettingsBackupActions] pattern:
@@ -86,7 +104,7 @@ class SettingsDriveBackupActions(
                     }
                     is Result.Error -> state.copy(
                         driveIsBusy = false,
-                        userMessage = "Drive sign-in failed: ${result.message}"
+                        userMessage = "Drive sign-in failed: ${driveBackupErrorText(result.message)}"
                     )
                     is Result.Loading -> state.copy(driveIsBusy = false)
                 }
@@ -109,7 +127,8 @@ class SettingsDriveBackupActions(
                     is Result.Error -> state.copy(
                         driveIsBusy = false,
                         drivePendingSignIn = null,
-                        userMessage = "Drive sign-in failed: ${result.message}"
+                        userMessage = if (result.message == DriveSyncError.SIGN_IN_CANCELLED) null
+                            else "Drive sign-in failed: ${driveBackupErrorText(result.message)}"
                     )
                     is Result.Loading -> state.copy(driveIsBusy = false)
                 }
@@ -145,7 +164,7 @@ class SettingsDriveBackupActions(
                         driveBackupOptions = emptyList(),
                         driveBackupManagementOptions = emptyList(),
                         pendingDriveCredentials = null,
-                        userMessage = "Drive sign-out failed: ${result.message}"
+                        userMessage = "Drive sign-out failed: ${driveBackupErrorText(result.message)}"
                     )
                     is Result.Loading -> state.copy(
                         driveIsBusy = false,
@@ -196,7 +215,7 @@ class SettingsDriveBackupActions(
                 uiState.update {
                     it.copy(
                         driveIsBusy = false,
-                        userMessage = "Drive push failed: ${backupResult.message}"
+                        userMessage = "Drive push failed: ${driveBackupErrorText(backupResult.message)}"
                     )
                 }
                 return@launch
@@ -320,7 +339,7 @@ class SettingsDriveBackupActions(
                     it.copy(
                         driveIsBusy = false,
                         driveBackupManagementOptions = emptyList(),
-                        userMessage = "Drive backup management failed: ${result.message}",
+                        userMessage = "Drive backup management failed: ${driveBackupErrorText(result.message)}",
                     )
                 }
                 is Result.Loading -> uiState.update { it.copy(driveIsBusy = false) }
@@ -370,7 +389,7 @@ class SettingsDriveBackupActions(
                 is Result.Error -> uiState.update {
                     it.copy(
                         driveIsBusy = false,
-                        userMessage = "Drive backup deletion failed: ${result.message}",
+                        userMessage = "Drive backup deletion failed: ${driveBackupErrorText(result.message)}",
                     )
                 }
                 is Result.Loading -> uiState.update { it.copy(driveIsBusy = false) }
@@ -386,7 +405,7 @@ class SettingsDriveBackupActions(
                     driveIsBusy = false,
                     driveBackupOptions = emptyList(),
                     pendingDriveCredentials = null,
-                    userMessage = "Drive pull failed: ${pullResult.message}"
+                    userMessage = "Drive pull failed: ${driveBackupErrorText(pullResult.message)}"
                 )
             }
             return
@@ -423,7 +442,7 @@ class SettingsDriveBackupActions(
     }
 
     private fun resultMessage(result: Result<*>): String = when (result) {
-        is Result.Error -> result.message
+        is Result.Error -> driveBackupErrorText(result.message)
         is Result.Loading -> "still loading"
         is Result.Success -> "unknown error"
     }

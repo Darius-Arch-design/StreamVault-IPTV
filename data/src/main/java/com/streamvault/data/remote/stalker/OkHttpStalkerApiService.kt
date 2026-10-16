@@ -3277,7 +3277,8 @@ class OkHttpStalkerApiService @Inject constructor(
             name = name,
             categoryId = findString("tv_genre_id")
                 ?: findString("category_id")
-                ?: findString("genre_id"),
+                ?: findString("genre_id")
+                ?: findString("category"),
             categoryName = findString("category_name"),
             number = findString("number")?.toIntOrNull() ?: 0,
             logoUrl = sanitizeUrl(findString("logo"))
@@ -3355,7 +3356,8 @@ class OkHttpStalkerApiService @Inject constructor(
             name = name,
             categoryId = findString("tv_genre_id")
                 ?: findString("category_id")
-                ?: findString("genre_id"),
+                ?: findString("genre_id")
+                ?: findString("category"),
             categoryName = findString("category_name"),
             number = findString("number")?.toIntOrNull() ?: 0,
             logoUrl = sanitizeUrl(findString("logo"))

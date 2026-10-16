@@ -437,4 +437,33 @@ class ProviderSyncWorkerTest {
         assertThat(updatedProvider.firstValue.lastSyncedAt).isEqualTo(provider.lastSyncedAt)
         verify(syncManager, never()).currentSyncState(9L)
     }
+
+    @Test
+    fun `failed Stalker continuation keeps its playable bootstrap catalog active`() = runTest {
+        val provider = ProviderEntity(
+            id = 11L,
+            name = "Stalker",
+            type = ProviderType.STALKER_PORTAL,
+            serverUrl = "https://example.com/portal.php",
+            isActive = true,
+            status = ProviderStatus.ACTIVE
+        )
+        whenever(providerDao.getById(11L)).thenReturn(provider)
+        whenever(channelDao.getCount(11L)).thenReturn(flowOf(200))
+
+        reconcileTargetedProviderStatus(
+            providerDao = providerDao,
+            channelDao = channelDao,
+            categoryDao = categoryDao,
+            syncMetadataRepository = syncMetadataRepository,
+            syncManager = syncManager,
+            provider = provider,
+            result = Result.error("bulk catalog stalled")
+        )
+
+        val updated = argumentCaptor<ProviderEntity>()
+        verify(providerDao).update(updated.capture())
+        assertThat(updated.firstValue.isActive).isTrue()
+        assertThat(updated.firstValue.status).isEqualTo(ProviderStatus.PARTIAL)
+    }
 }

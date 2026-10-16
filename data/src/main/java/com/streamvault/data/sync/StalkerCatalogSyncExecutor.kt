@@ -53,6 +53,7 @@ private const val LIVE_CATEGORY_SEQUENTIAL_MODE_WARNING =
     "Live category sync downgraded to sequential mode after provider stress signals."
 private const val FALLBACK_STAGE_BATCH_SIZE = 500
 private const val STALKER_BOOTSTRAP_LIVE_CHANNEL_CAP = 200
+private const val STALKER_MIN_RECOVERABLE_BULK_CHANNELS = 1_000
 
 /** Owns Stalker authentication, full catalog orchestration, and Live repair execution. */
 internal class StalkerCatalogSyncExecutor(
@@ -188,7 +189,10 @@ internal class StalkerCatalogSyncExecutor(
         }
         readinessTracker.liveReady(provider.id)
 
-        if (force || catalogLayoutChanged || ContentCachePolicy.shouldRefresh(metadata.lastMovieSuccess, ContentCachePolicy.CATALOG_TTL_MILLIS, now)) {
+        // The category shell is refreshed separately from the background index. The index may span
+        // multiple app launches, so lastMovieSuccess must not trigger a shell reload that deletes
+        // its durable hydration checkpoints.
+        if (force || catalogLayoutChanged || ContentCachePolicy.shouldRefresh(metadata.lastMovieSync, ContentCachePolicy.CATALOG_TTL_MILLIS, now)) {
             progress(provider.id, onProgress, "Preparing Movies...")
             val categories = when (val categoriesResult = if (effectiveCatalogLayout == CatalogLayout.UNIFIED_VOD) {
                 api.getUnifiedVodCategories()
@@ -253,7 +257,7 @@ internal class StalkerCatalogSyncExecutor(
         if (effectiveCatalogLayout == CatalogLayout.UNIFIED_VOD) {
             categoryDao.deleteByProviderAndType(provider.id, ContentType.SERIES.name)
             seriesCategoryHydrationDao.deleteByProvider(provider.id)
-        } else if (force || catalogLayoutChanged || ContentCachePolicy.shouldRefresh(metadata.lastSeriesSuccess, ContentCachePolicy.CATALOG_TTL_MILLIS, now)) {
+        } else if (force || catalogLayoutChanged || ContentCachePolicy.shouldRefresh(metadata.lastSeriesSync, ContentCachePolicy.CATALOG_TTL_MILLIS, now)) {
             progress(provider.id, onProgress, "Preparing Series...")
             val categories = when (val categoriesResult = api.getSeriesCategories()) {
                 is Result.Success -> categoriesResult.data
@@ -456,7 +460,8 @@ internal class StalkerCatalogSyncExecutor(
         val batch = ArrayList<Channel>(FALLBACK_STAGE_BATCH_SIZE)
         var stagedSessionId: Long? = null
         var acceptedCount = 0
-        var bulkRowsWithResolvedCategories = 0
+        val preferredCategoryIds = preferredCategories.orEmpty().map { it.categoryId }.toHashSet()
+        val bulkResolvedCategoryStreamIds = HashSet<Long>()
 
         suspend fun flushBatch() {
             if (batch.isEmpty()) return
@@ -472,7 +477,7 @@ internal class StalkerCatalogSyncExecutor(
             batch.clear()
         }
 
-        suspend fun finalizeStagedImport(): StagedStalkerLiveCatalogResult {
+        suspend fun finalizeStagedImport(partial: Boolean = false): StagedStalkerLiveCatalogResult {
             stagedSessionId?.let { sessionId ->
                 if (hiddenLiveCategoryIds.isNotEmpty()) {
                     mergeHiddenChannelsIntoStaging(provider.id, sessionId, hiddenLiveCategoryIds)
@@ -496,7 +501,13 @@ internal class StalkerCatalogSyncExecutor(
                     warnings = (warnings + "Live TV returned no usable channels; keeping the last verified Live catalog.").distinct()
                 )
             }
-            syncCatalogStore.applyStagedLiveCatalog(provider.id, sessionId, categories, afterCatalogApply)
+            if (partial) {
+                // An interrupted bulk response is a usable subset. Keep channels from an
+                // earlier sync that were absent from this response.
+                syncCatalogStore.applyStagedLiveCatalogUpsertOnly(provider.id, sessionId, categories, afterCatalogApply)
+            } else {
+                syncCatalogStore.applyStagedLiveCatalog(provider.id, sessionId, categories, afterCatalogApply)
+            }
             return StagedStalkerLiveCatalogResult(acceptedCount, warnings)
         }
 
@@ -506,14 +517,17 @@ internal class StalkerCatalogSyncExecutor(
             val bulkUnsupportedVerdictFresh = learnedState?.bulkLiveSupported == false &&
                 learnedState.validatedAt > 0L &&
                 System.currentTimeMillis() - learnedState.validatedAt <= STALKER_BULK_LIVE_UNSUPPORTED_TTL_MILLIS
-            val shouldTryBulk = (!bulkUnsupportedVerdictFresh && learnedState?.bulkLiveCategoryFidelity != false) ||
-                preferredCategories.isNullOrEmpty()
+            // Older builds could cache a false category-mapping verdict before parsing the portal's
+            // category alias. Re-probe a working bulk endpoint after that parser is updated.
+            val shouldTryBulk = !bulkUnsupportedVerdictFresh || preferredCategories.isNullOrEmpty()
             StalkerTelemetry.strategySelected(
                 provider.id,
                 if (shouldTryBulk) "BULK_LIVE" else "CATEGORY_LIVE",
                 when {
+                    shouldTryBulk && learnedState?.bulkLiveSupported == true && learnedState.bulkLiveCategoryFidelity == false -> "RECHECK_CATEGORY_MAPPING"
                     shouldTryBulk && learnedState?.bulkLiveSupported == true -> "VALIDATED_CACHE"
                     shouldTryBulk && learnedState?.bulkLiveSupported == false -> "STALE_UNSUPPORTED_REPROBE"
+                    !shouldTryBulk && bulkUnsupportedVerdictFresh -> "BULK_KNOWN_UNSUPPORTED"
                     !shouldTryBulk && learnedState?.bulkLiveCategoryFidelity == false -> "BULK_CATEGORY_FIDELITY_FAILED"
                     !shouldTryBulk -> "BULK_KNOWN_UNSUPPORTED"
                     else -> "CAPABILITY_PROBE"
@@ -524,7 +538,7 @@ internal class StalkerCatalogSyncExecutor(
                     api.streamLiveStreams(maxChannels = maxChannels) { channel ->
                         markBulkProgress()
                         if (channel.categoryId != null && channel.categoryId in hiddenLiveCategoryIds && channel.categoryId !in requiredHiddenLiveCategoryIds) return@streamLiveStreams
-                        if (channel.categoryId != null) bulkRowsWithResolvedCategories++
+                        channel.categoryId?.takeIf { it in preferredCategoryIds }?.let { bulkResolvedCategoryStreamIds += channel.streamId }
                         if (maxChannels == null || acceptedCount + batch.size < maxChannels) batch += channel
                         if (batch.size >= FALLBACK_STAGE_BATCH_SIZE) {
                             flushBatch()
@@ -536,8 +550,14 @@ internal class StalkerCatalogSyncExecutor(
             when (streamResult) {
                 is Result.Success -> {
                     flushBatch()
-                    api.recordBulkLiveCapability(true, acceptedCount == 0 || bulkRowsWithResolvedCategories > 0)
-                    return finalizeStagedImport()
+                    val hasCategoryMapping = acceptedCount == 0 || bulkResolvedCategoryStreamIds.size.toLong() * 5L >= acceptedCount.toLong() * 4L
+                    api.recordBulkLiveCapability(true, hasCategoryMapping)
+                    if (hasCategoryMapping || preferredCategories.isNullOrEmpty() || maxChannels != null) {
+                        return finalizeStagedImport()
+                    }
+                    bulkFailure = IOException("Bulk live response omitted category IDs; falling back to category requests.")
+                    warnings += "Bulk live response omitted category IDs; recovered using per-category live fetches."
+                    progress(provider.id, onProgress, "Bulk live channels have no category IDs; loading by category...")
                 }
                 is Result.Error -> {
                     if (isDefinitiveBulkLiveFailure(streamResult.exception)) api.recordBulkLiveCapability(false)
@@ -555,6 +575,21 @@ internal class StalkerCatalogSyncExecutor(
                     bulkFailure = IOException("Bulk live request timed out; switching to category requests.")
                     progress(provider.id, onProgress, "Bulk live request is slow; loading categories instead...")
                 }
+            }
+
+            if (maxChannels == null &&
+                acceptedCount + batch.size >= STALKER_MIN_RECOVERABLE_BULK_CHANNELS &&
+                bulkResolvedCategoryStreamIds.size >= (acceptedCount + batch.size) * 4 / 5
+            ) {
+                flushBatch()
+                Log.w(
+                    STALKER_EXECUTOR_TAG,
+                    "Stalker bulk live sync ended after $acceptedCount channels for provider ${provider.id}; retaining partial catalog.",
+                    bulkFailure
+                )
+                warnings += "Bulk Live TV transfer ended early; saved $acceptedCount channels. A later Live sync can fetch the rest."
+                progress(provider.id, onProgress, "Keeping $acceptedCount channels from interrupted Live TV download...")
+                return finalizeStagedImport(partial = true)
             }
 
             stagedSessionId?.let { syncCatalogStore.discardStagedImport(provider.id, it) }

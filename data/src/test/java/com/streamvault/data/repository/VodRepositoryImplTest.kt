@@ -107,6 +107,21 @@ class VodRepositoryImplTest {
     }
 
     @Test
+    fun getCategories_doesNotRestoreLegacyCategoriesWhenEveryVodCategoryIsHidden() = runTest {
+        whenever(categoryDao.getByProviderAndType(1L, ContentType.VOD.name))
+            .thenReturn(flowOf(listOf(CategoryEntity(
+                providerId = 1L, categoryId = 42L, name = "Hidden VOD", type = ContentType.VOD
+            ))))
+        whenever(preferences.parentalControlLevel).thenReturn(flowOf(0))
+        whenever(preferences.getHiddenCategoryIds(1L, ContentType.VOD))
+            .thenReturn(flowOf(setOf(42L)))
+
+        assertThat(repository().getCategories(1L).first()).isEmpty()
+        verify(categoryDao, org.mockito.kotlin.never())
+            .getByProviderAndTypeSync(1L, ContentType.MOVIE.name)
+    }
+
+    @Test
     fun searchVod_returnsMixedPortalResultsWithStablePersistedIds() = runTest {
         val snapshot = stalkerSnapshot(1L)
         val stalkerProvider = mock<StalkerProvider>()

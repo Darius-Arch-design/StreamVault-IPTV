@@ -16,6 +16,8 @@ import com.streamvault.domain.model.ChannelLogoSourcePolicy
 import com.streamvault.domain.model.GuideSourcePolicy
 import com.streamvault.domain.model.ProviderXtreamLiveSyncMode
 import com.streamvault.domain.model.StalkerAuthMode
+import com.streamvault.domain.model.StalkerTransportChallenge
+import com.streamvault.domain.model.StalkerTransportChallengeReason
 import com.streamvault.domain.repository.ProviderRepository
 import com.streamvault.domain.usecase.JellyfinProviderSetupCommand
 import com.streamvault.domain.usecase.M3uProviderSetupCommand
@@ -24,8 +26,8 @@ import com.streamvault.domain.usecase.ValidateAndAddProvider
 import com.streamvault.domain.usecase.ValidateAndAddProviderResult
 import com.streamvault.domain.usecase.XtreamProviderSetupCommand
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.io.BufferedReader
-import java.io.InputStreamReader
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.io.OutputStream
 import java.net.Inet4Address
 import java.net.NetworkInterface
@@ -70,6 +72,7 @@ class ProviderQrPairingManager @Inject constructor(
     private var timeoutJob: Job? = null
     private var activeToken: String? = null
     private var activeExpiresAtMs: Long = 0L
+    private var pendingStalkerReview: PendingStalkerReview? = null
 
     suspend fun startPairing() {
         stopPairing()
@@ -127,6 +130,7 @@ class ProviderQrPairingManager @Inject constructor(
         serverSocket = null
         activeToken = null
         activeExpiresAtMs = 0L
+        pendingStalkerReview = null
         if (oldAcceptJob != null && oldAcceptJob !== kotlinx.coroutines.currentCoroutineContext()[Job]) {
             runCatching { oldAcceptJob.cancelAndJoin() }
         }
@@ -155,8 +159,9 @@ class ProviderQrPairingManager @Inject constructor(
 
     private suspend fun handleClient(socket: Socket) {
         socket.use { client ->
-            val reader = BufferedReader(InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8))
-            val firstLine = reader.readLine() ?: return
+            client.soTimeout = 15_000
+            val input = client.getInputStream()
+            val firstLine = readHttpLine(input) ?: return
             val parts = firstLine.split(' ')
             if (parts.size < 2) {
                 writeResponse(client.getOutputStream(), 400, "text/plain", "Bad request")
@@ -166,7 +171,7 @@ class ProviderQrPairingManager @Inject constructor(
             val pathAndQuery = parts[1]
             val headers = mutableMapOf<String, String>()
             while (true) {
-                val line = reader.readLine() ?: break
+                val line = readHttpLine(input) ?: break
                 if (line.isEmpty()) break
                 val key = line.substringBefore(':', "").trim().lowercase(Locale.US)
                 val value = line.substringAfter(':', "").trim()
@@ -182,16 +187,8 @@ class ProviderQrPairingManager @Inject constructor(
                         writeHtml(client.getOutputStream(), 200, formPage(token.orEmpty()))
                     }
                 }
-                method == "POST" && pathAndQuery.startsWith("/submit") -> {
-                    val length = headers["content-length"]?.toIntOrNull()?.coerceAtMost(MAX_FORM_BYTES) ?: 0
-                    val body = CharArray(length)
-                    var read = 0
-                    while (read < length) {
-                        val count = reader.read(body, read, length - read)
-                        if (count <= 0) break
-                        read += count
-                    }
-                    val form = parseForm(String(body, 0, read))
+                method == "POST" && pathAndQuery in setOf("/submit", "/approve-transport", "/save-unverified") -> {
+                    val form = readPostForm(input, headers)
                     val token = form["token"]
                     if (!isTokenValid(token)) {
                         writeHtml(client.getOutputStream(), 403, errorPage("Pairing session expired. Start a new QR session on the TV."))
@@ -201,22 +198,93 @@ class ProviderQrPairingManager @Inject constructor(
                         status = ProviderQrPairingStatus.RECEIVING,
                         message = "Phone submitted provider details. Validating..."
                     )
-                    val saveResult = addProviderFromForm(form)
-                    when (saveResult) {
-                        is ProviderPairingSubmitResult.Success -> {
-                            writeHtml(client.getOutputStream(), 200, successPage(saveResult.providerName))
-                            invalidateAfterSuccess(saveResult.providerName)
+                    val saveResult = when (pathAndQuery) {
+                        "/submit" -> {
+                            pendingStalkerReview = null
+                            addProviderFromForm(form)
                         }
-                        is ProviderPairingSubmitResult.Error -> {
-                            _state.value = _state.value.copy(
-                                status = ProviderQrPairingStatus.READY,
-                                message = saveResult.message
-                            )
-                            writeHtml(client.getOutputStream(), 400, errorPage(saveResult.message))
+                        "/approve-transport" -> {
+                            val review = takePendingReview() as? PendingStalkerReview.Transport
+                            if (review == null) {
+                                ProviderPairingSubmitResult.Error("This confirmation has expired. Submit the form again.")
+                            } else if (review.challenge.reason == StalkerTransportChallengeReason.INVALID_TLS &&
+                                review.challenge.proposedSpkiSha256.isNullOrBlank()
+                            ) {
+                                ProviderPairingSubmitResult.Error("The provider certificate could not be read safely.")
+                            } else {
+                                validateStalker(review.command.copy(transportGrant = review.challenge.acceptedGrant()))
+                            }
+                        }
+                        else -> {
+                            val review = takePendingReview() as? PendingStalkerReview.Verification
+                            if (review == null) {
+                                ProviderPairingSubmitResult.Error("This confirmation has expired. Submit the form again.")
+                            } else {
+                                validateStalker(review.command.copy(saveWithoutVerification = true))
+                            }
                         }
                     }
+                    presentSubmissionResult(client.getOutputStream(), saveResult, token.orEmpty())
                 }
                 else -> writeResponse(client.getOutputStream(), 404, "text/plain", "Not found")
+            }
+        }
+    }
+
+    private fun readHttpLine(input: InputStream): String? {
+        val bytes = ByteArrayOutputStream()
+        while (true) {
+            val next = input.read()
+            if (next < 0) return if (bytes.size() == 0) null else bytes.toString(StandardCharsets.ISO_8859_1.name())
+            if (next == '\n'.code) break
+            if (bytes.size() >= 8192) throw IllegalArgumentException("HTTP request header is too long")
+            if (next != '\r'.code) bytes.write(next)
+        }
+        return bytes.toString(StandardCharsets.ISO_8859_1.name())
+    }
+
+    private fun readPostForm(input: InputStream, headers: Map<String, String>): Map<String, String> {
+        val length = headers["content-length"]?.toIntOrNull() ?: return emptyMap()
+        require(length in 0..MAX_FORM_BYTES) { "Pairing form is too large" }
+        val body = ByteArray(length)
+        var read = 0
+        while (read < length) {
+            val count = input.read(body, read, length - read)
+            if (count <= 0) break
+            read += count
+        }
+        return parseForm(String(body, 0, read, StandardCharsets.UTF_8))
+    }
+
+    private fun takePendingReview(): PendingStalkerReview? = synchronized(this) {
+        pendingStalkerReview.also { pendingStalkerReview = null }
+    }
+
+    private fun presentSubmissionResult(output: OutputStream, result: ProviderPairingSubmitResult, token: String) {
+        when (result) {
+            is ProviderPairingSubmitResult.Success -> {
+                writeHtml(output, 200, successPage(result.providerName))
+                invalidateAfterSuccess(result.providerName)
+            }
+            is ProviderPairingSubmitResult.TransportConsentRequired -> {
+                pendingStalkerReview = PendingStalkerReview.Transport(result.command, result.challenge)
+                _state.value = _state.value.copy(
+                    status = ProviderQrPairingStatus.READY,
+                    message = "Confirm the provider connection warning on your phone."
+                )
+                writeHtml(output, 200, transportConsentPage(result.challenge, token))
+            }
+            is ProviderPairingSubmitResult.VerificationInconclusive -> {
+                pendingStalkerReview = PendingStalkerReview.Verification(result.command)
+                _state.value = _state.value.copy(
+                    status = ProviderQrPairingStatus.READY,
+                    message = "Review the provider verification warning on your phone."
+                )
+                writeHtml(output, 200, verificationPage(token))
+            }
+            is ProviderPairingSubmitResult.Error -> {
+                _state.value = _state.value.copy(status = ProviderQrPairingStatus.READY, message = result.message)
+                writeHtml(output, 400, errorPage(result.message))
             }
         }
     }
@@ -232,6 +300,17 @@ class ProviderQrPairingManager @Inject constructor(
                 else -> "Phone Xtream Provider"
             }
         }
+        val stalkerCommand = if (type == "stalker") StalkerProviderSetupCommand(
+            portalUrl = form["serverUrl"].orEmpty(),
+            macAddress = form["macAddress"].orEmpty(),
+            authMode = StalkerAuthMode.AUTO,
+            username = form["username"].orEmpty(),
+            password = form["password"].orEmpty(),
+            name = name,
+            epgSyncMode = ProviderEpgSyncMode.BACKGROUND,
+            guideSourcePolicy = GuideSourcePolicy.AUTO,
+            channelLogoSourcePolicy = ChannelLogoSourcePolicy.SUPPLIER_PREFERRED
+        ) else null
         val result = when (type) {
             "m3u" -> validateAndAddProvider.addM3u(
                 M3uProviderSetupCommand(
@@ -243,20 +322,7 @@ class ProviderQrPairingManager @Inject constructor(
                 ),
                 onProgress = ::updateProgress
             )
-            "stalker" -> validateAndAddProvider.loginStalker(
-                StalkerProviderSetupCommand(
-                    portalUrl = form["serverUrl"].orEmpty(),
-                    macAddress = form["macAddress"].orEmpty(),
-                    authMode = StalkerAuthMode.AUTO,
-                    username = form["username"].orEmpty(),
-                    password = form["password"].orEmpty(),
-                    name = name,
-                    epgSyncMode = ProviderEpgSyncMode.BACKGROUND,
-                    guideSourcePolicy = GuideSourcePolicy.AUTO,
-                    channelLogoSourcePolicy = ChannelLogoSourcePolicy.SUPPLIER_PREFERRED
-                ),
-                onProgress = ::updateProgress
-            )
+            "stalker" -> validateAndAddProvider.loginStalker(stalkerCommand!!, onProgress = ::updateProgress)
             "jellyfin" -> validateAndAddProvider.loginJellyfin(
                 JellyfinProviderSetupCommand(
                     serverUrl = form["serverUrl"].orEmpty(),
@@ -280,7 +346,16 @@ class ProviderQrPairingManager @Inject constructor(
                 onProgress = ::updateProgress
             )
         }
-        return when (result) {
+        return toPairingResult(result, stalkerCommand)
+    }
+
+    private suspend fun validateStalker(command: StalkerProviderSetupCommand): ProviderPairingSubmitResult =
+        toPairingResult(validateAndAddProvider.loginStalker(command, onProgress = ::updateProgress), command)
+
+    private fun toPairingResult(
+        result: ValidateAndAddProviderResult,
+        stalkerCommand: StalkerProviderSetupCommand?
+    ): ProviderPairingSubmitResult = when (result) {
             is ValidateAndAddProviderResult.Success ->
                 ProviderPairingSubmitResult.Success(result.provider.name)
             is ValidateAndAddProviderResult.SavedWithWarning ->
@@ -288,17 +363,14 @@ class ProviderQrPairingManager @Inject constructor(
             is ValidateAndAddProviderResult.ValidationError ->
                 ProviderPairingSubmitResult.Error(result.message)
             is ValidateAndAddProviderResult.TransportConsentRequired ->
-                ProviderPairingSubmitResult.Error(
-                    "Open StreamVault on the TV to review this provider's connection warning."
-                )
+                if (stalkerCommand != null) ProviderPairingSubmitResult.TransportConsentRequired(stalkerCommand, result.challenge)
+                else ProviderPairingSubmitResult.Error("Review this provider's connection warning on the TV.")
             is ValidateAndAddProviderResult.VerificationInconclusive ->
-                ProviderPairingSubmitResult.Error(
-                    "Open StreamVault on the TV to decide whether to save this provider with verification pending."
-                )
+                if (stalkerCommand != null) ProviderPairingSubmitResult.VerificationInconclusive(stalkerCommand)
+                else ProviderPairingSubmitResult.Error(result.message)
             is ValidateAndAddProviderResult.Error ->
                 ProviderPairingSubmitResult.Error(result.message)
         }
-    }
 
     private fun updateProgress(message: String) {
         _state.value = _state.value.copy(
@@ -311,6 +383,7 @@ class ProviderQrPairingManager @Inject constructor(
         runCatching { serverSocket?.close() }
         activeToken = null
         activeExpiresAtMs = 0L
+        pendingStalkerReview = null
         _state.value = ProviderQrPairingState(
             status = ProviderQrPairingStatus.COMPLETE,
             message = "Provider added from phone: $providerName"
@@ -487,6 +560,45 @@ class ProviderQrPairingManager @Inject constructor(
         </head><body><main><h1>Sent to TV</h1><p>${providerName.escapeHtml()} was added to StreamVault. You can close this page.</p></main></body></html>
     """.trimIndent()
 
+    private fun transportConsentPage(challenge: StalkerTransportChallenge, token: String): String {
+        val message = when (challenge.reason) {
+            StalkerTransportChallengeReason.CLEARTEXT_HTTP ->
+                "Your login and viewing requests to ${challenge.displayHost.escapeHtml()} can be read or changed by someone on the network."
+            StalkerTransportChallengeReason.INVALID_TLS ->
+                "The connection to ${challenge.displayHost.escapeHtml()} may be encrypted, but its identity could not be verified."
+            StalkerTransportChallengeReason.ORIGIN_CHANGED ->
+                "The provider redirected the connection to ${challenge.displayHost.escapeHtml()}. Review this address before continuing."
+        }
+        if (challenge.reason == StalkerTransportChallengeReason.INVALID_TLS &&
+            challenge.proposedSpkiSha256.isNullOrBlank()
+        ) return errorPage("The provider certificate could not be read safely. Check the address on the TV.")
+        return reviewPage(
+            title = "Review provider connection",
+            message = message,
+            action = "/approve-transport",
+            button = "Connect anyway",
+            token = token
+        )
+    }
+
+    private fun verificationPage(token: String): String = reviewPage(
+        title = "Live TV could not be verified",
+        message = "The provider accepted your login, but the Live TV check did not finish. " +
+            "You can save it with verification pending; it will remain inactive until a sync confirms playable Live TV.",
+        action = "/save-unverified",
+        button = "Save with verification pending",
+        token = token
+    )
+
+    private fun reviewPage(title: String, message: String, action: String, button: String, token: String): String = """
+        <!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#101820;color:#f8fafc;padding:28px}main{max-width:520px;margin:auto;background:#172635;border-radius:22px;padding:24px}p{line-height:1.5}button{width:100%;padding:15px;border:0;border-radius:14px;background:#32d6a0;color:#06110d;font-size:17px;font-weight:900}</style>
+        </head><body><main><h1>${title.escapeHtml()}</h1><p>$message</p>
+        <form method="post" action="$action"><input type="hidden" name="token" value="${token.escapeHtml()}">
+        <button type="submit">${button.escapeHtml()}</button></form>
+        <p>You can close this page if you do not want to continue.</p></main></body></html>
+    """.trimIndent()
+
     private fun errorPage(message: String): String = """
         <!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
         <style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#101820;color:#f8fafc;padding:28px}main{max-width:520px;margin:auto;background:#2a1720;border-radius:22px;padding:24px}h1{color:#ff8b8b}</style>
@@ -519,4 +631,17 @@ enum class ProviderQrPairingStatus {
 private sealed interface ProviderPairingSubmitResult {
     data class Success(val providerName: String) : ProviderPairingSubmitResult
     data class Error(val message: String) : ProviderPairingSubmitResult
+    data class TransportConsentRequired(
+        val command: StalkerProviderSetupCommand,
+        val challenge: StalkerTransportChallenge
+    ) : ProviderPairingSubmitResult
+    data class VerificationInconclusive(val command: StalkerProviderSetupCommand) : ProviderPairingSubmitResult
+}
+
+private sealed interface PendingStalkerReview {
+    data class Transport(
+        val command: StalkerProviderSetupCommand,
+        val challenge: StalkerTransportChallenge
+    ) : PendingStalkerReview
+    data class Verification(val command: StalkerProviderSetupCommand) : PendingStalkerReview
 }

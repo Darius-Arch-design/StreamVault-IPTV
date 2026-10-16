@@ -2828,6 +2828,161 @@ class SyncManagerTest {
     }
 
     @Test
+    fun sync_stalker_does_not_restart_pending_index_when_category_shell_is_fresh() = runTest {
+        val providerEntity = sampleProvider(ProviderType.STALKER_PORTAL).copy(
+            serverUrl = "http://example.com",
+            username = "",
+            password = "",
+            stalkerMacAddress = "00:11:22:33:44:55",
+            epgSyncMode = ProviderEpgSyncMode.SKIP,
+            stalkerCatalogMode = com.streamvault.domain.model.StalkerCatalogMode.BACKGROUND_INDEX
+        )
+        val manager = buildManager(
+            providerType = ProviderType.STALKER_PORTAL,
+            providerEntity = providerEntity
+        )
+        val now = System.currentTimeMillis()
+        syncMetadataRepo.updateMetadata(
+            SyncMetadata(
+                providerId = 1L,
+                lastLiveSync = now,
+                lastLiveSuccess = now,
+                lastMovieSync = now,
+                lastMovieSuccess = 0L,
+                lastSeriesSync = now,
+                lastSeriesSuccess = 0L,
+                liveCount = 23_833,
+                movieCount = 1,
+                seriesCount = 1,
+                movieCatalogStale = true
+            )
+        )
+        org.mockito.kotlin.whenever(stalkerApiService.authenticate(any())).thenReturn(
+            Result.success(
+                StalkerSession(
+                    loadUrl = "http://example.com/stalker_portal/server/load.php",
+                    portalReferer = "http://example.com/stalker_portal/c/",
+                    token = "token"
+                ) to StalkerProviderProfile(accountName = "Stalker")
+            )
+        )
+
+        val result = manager.sync(providerId = 1L, force = false)
+
+        assertThat(result).isInstanceOf(Result.Success::class.java)
+        verify(movieCategoryHydrationDao, org.mockito.kotlin.times(0)).deleteByProvider(1L)
+        verify(seriesCategoryHydrationDao, org.mockito.kotlin.times(0)).deleteByProvider(1L)
+        verify(stalkerApiService, org.mockito.kotlin.times(0)).getVodCategories(any(), any())
+        verify(stalkerApiService, org.mockito.kotlin.times(0)).getSeriesCategories(any(), any())
+    }
+
+    @Test
+    fun sync_stalker_rechecks_bulk_when_cached_category_mapping_came_from_old_parser() = runTest {
+        val providerEntity = sampleProvider(ProviderType.STALKER_PORTAL).copy(
+            serverUrl = "http://example.com",
+            username = "",
+            password = "",
+            stalkerMacAddress = "00:11:22:33:44:55",
+            epgSyncMode = ProviderEpgSyncMode.SKIP
+        )
+        val portalStateStore = mock<com.streamvault.data.remote.stalker.StalkerPortalStateStore>()
+        org.mockito.kotlin.whenever(portalStateStore.getValidated(eq(1L), any())).thenReturn(
+            StalkerPortalStateEntity(
+                providerId = 1L,
+                bulkLiveSupported = true,
+                bulkLiveCategoryFidelity = false,
+                validatedAt = System.currentTimeMillis()
+            )
+        )
+        val manager = buildManager(
+            providerType = ProviderType.STALKER_PORTAL,
+            providerEntity = providerEntity,
+            portalStateStore = portalStateStore
+        )
+        org.mockito.kotlin.whenever(stalkerApiService.authenticate(any())).thenReturn(
+            Result.success(
+                StalkerSession(
+                    loadUrl = "http://example.com/stalker_portal/server/load.php",
+                    portalReferer = "http://example.com/stalker_portal/c/",
+                    token = "token"
+                ) to StalkerProviderProfile(accountName = "Stalker")
+            )
+        )
+        org.mockito.kotlin.whenever(stalkerApiService.getLiveCategories(any(), any())).thenReturn(
+            Result.success(listOf(StalkerCategoryRecord(id = "10", name = "News")))
+        )
+        stalkerApiService.stubStreamLiveStreams(
+            listOf(
+                StalkerItemRecord(
+                    id = "100",
+                    name = "News",
+                    categoryId = "10",
+                    cmd = "ffmpeg http://example.com/live.ts"
+                )
+            )
+        )
+        org.mockito.kotlin.whenever(stalkerApiService.getVodCategories(any(), any())).thenReturn(Result.success(emptyList()))
+        org.mockito.kotlin.whenever(stalkerApiService.getSeriesCategories(any(), any())).thenReturn(Result.success(emptyList()))
+
+        val result = manager.sync(providerId = 1L, force = false)
+
+        assertThat(result).isInstanceOf(Result.Success::class.java)
+        verify(stalkerApiService).streamLiveStreams(any(), any(), any())
+        verify(stalkerApiService, org.mockito.kotlin.times(0)).getLiveStreams(any(), any(), eq("10"))
+        verify(portalStateStore).recordBulkLive(eq(1L), eq(true), eq(true), any(), anyOrNull())
+    }
+
+    @Test
+    fun sync_stalker_falls_back_when_bulk_channels_have_no_category_ids() = runTest {
+        val providerEntity = sampleProvider(ProviderType.STALKER_PORTAL).copy(
+            serverUrl = "http://example.com",
+            username = "",
+            password = "",
+            stalkerMacAddress = "00:11:22:33:44:55",
+            epgSyncMode = ProviderEpgSyncMode.SKIP
+        )
+        val manager = buildManager(providerType = ProviderType.STALKER_PORTAL, providerEntity = providerEntity)
+        org.mockito.kotlin.whenever(stalkerApiService.authenticate(any())).thenReturn(
+            Result.success(
+                StalkerSession(
+                    loadUrl = "http://example.com/stalker_portal/server/load.php",
+                    portalReferer = "http://example.com/stalker_portal/c/",
+                    token = "token"
+                ) to StalkerProviderProfile(accountName = "Stalker")
+            )
+        )
+        org.mockito.kotlin.whenever(stalkerApiService.getLiveCategories(any(), any())).thenReturn(
+            Result.success(listOf(StalkerCategoryRecord(id = "10", name = "News")))
+        )
+        stalkerApiService.stubStreamLiveStreams(
+            listOf(StalkerItemRecord(id = "100", name = "News", cmd = "ffmpeg http://example.com/live.ts"))
+        )
+        org.mockito.kotlin.whenever(stalkerApiService.getLiveStreams(any(), any(), eq("10"))).thenReturn(
+            Result.success(
+                listOf(
+                    StalkerItemRecord(
+                        id = "100",
+                        name = "News",
+                        categoryId = "10",
+                        cmd = "ffmpeg http://example.com/live.ts"
+                    )
+                )
+            )
+        )
+        org.mockito.kotlin.whenever(stalkerApiService.getVodCategories(any(), any())).thenReturn(Result.success(emptyList()))
+        org.mockito.kotlin.whenever(stalkerApiService.getSeriesCategories(any(), any())).thenReturn(Result.success(emptyList()))
+
+        val result = manager.sync(providerId = 1L, force = false)
+
+        assertThat(result).isInstanceOf(Result.Success::class.java)
+        verify(stalkerApiService).streamLiveStreams(any(), any(), any())
+        verify(stalkerApiService).getLiveStreams(any(), any(), eq("10"))
+        val categoryStages = argumentCaptor<List<com.streamvault.data.local.entity.CategoryImportStageEntity>>()
+        verify(catalogSyncDao, atLeastOnce()).insertCategoryStages(categoryStages.capture())
+        assertThat(categoryStages.allValues.flatten().any { it.name == "News" && it.type == ContentType.LIVE }).isTrue()
+    }
+
+    @Test
     fun sync_stalker_does_not_persist_bulk_unsupported_after_transient_bulk_failure() = runTest {
         val providerEntity = sampleProvider(ProviderType.STALKER_PORTAL).copy(
             serverUrl = "http://example.com",
@@ -3398,6 +3553,51 @@ class SyncManagerTest {
         verify(stalkerApiService).streamLiveStreams(any(), any(), any())
         verify(stalkerApiService).getLiveStreams(any(), any(), eq("10"))
         verify(stalkerApiService).getLiveStreams(any(), any(), eq("20"))
+    }
+
+    @Test
+    fun sync_stalker_keeps_large_interrupted_bulk_import_without_refetching_every_category() = runTest {
+        val providerEntity = sampleProvider(ProviderType.STALKER_PORTAL).copy(
+            serverUrl = "http://example.com",
+            username = "",
+            password = "",
+            stalkerMacAddress = "00:11:22:33:44:55",
+            epgSyncMode = ProviderEpgSyncMode.SKIP
+        )
+        val manager = buildManager(providerType = ProviderType.STALKER_PORTAL, providerEntity = providerEntity)
+        org.mockito.kotlin.whenever(stalkerApiService.authenticate(any())).thenReturn(
+            Result.success(
+                StalkerSession(
+                    loadUrl = "http://example.com/stalker_portal/server/load.php",
+                    portalReferer = "http://example.com/stalker_portal/c/",
+                    token = "token"
+                ) to StalkerProviderProfile(accountName = "Stalker")
+            )
+        )
+        org.mockito.kotlin.whenever(stalkerApiService.getLiveCategories(any(), any())).thenReturn(
+            Result.success(listOf(StalkerCategoryRecord(id = "10", name = "News")))
+        )
+        stalkerApiService.stubStreamLiveStreamsPartial(
+            (1..1_000).map { number ->
+                StalkerItemRecord(
+                    id = number.toString(),
+                    name = "Channel $number",
+                    categoryId = "10",
+                    cmd = "ffmpeg http://example.com/live/$number.ts"
+                )
+            }
+        )
+        org.mockito.kotlin.whenever(stalkerApiService.getVodCategories(any(), any())).thenReturn(Result.success(emptyList()))
+        org.mockito.kotlin.whenever(stalkerApiService.getSeriesCategories(any(), any())).thenReturn(Result.success(emptyList()))
+
+        val result = manager.sync(providerId = 1L, force = false)
+
+        assertThat(result).isInstanceOf(Result.Success::class.java)
+        assertThat(manager.currentSyncState(1L)).isInstanceOf(SyncState.Partial::class.java)
+        assertThat(syncMetadataRepo.getMetadata(1L)?.liveCount).isEqualTo(1_000)
+        verify(catalogSyncDao, atLeastOnce()).insertChannelStages(any())
+        verify(stalkerApiService, org.mockito.kotlin.never()).getLiveStreams(any(), any(), any())
+        verify(catalogSyncDao, org.mockito.kotlin.never()).deleteStaleChannelsForStage(any(), any())
     }
 
     @Test
@@ -4263,6 +4463,24 @@ private suspend fun com.streamvault.data.remote.stalker.StalkerApiService.stubSt
             org.mockito.kotlin.any()
         )
     ).doSuspendableAnswer { com.streamvault.domain.model.Result.error(message) }
+}
+
+/** Emits a usable bulk prefix, then simulates a connection breaking mid-transfer. */
+private suspend fun com.streamvault.data.remote.stalker.StalkerApiService.stubStreamLiveStreamsPartial(
+    items: List<com.streamvault.data.remote.stalker.StalkerItemRecord>
+) {
+    org.mockito.kotlin.whenever(
+        streamLiveStreams(
+            org.mockito.kotlin.any(),
+            org.mockito.kotlin.any(),
+            org.mockito.kotlin.any()
+        )
+    ).doSuspendableAnswer { invocation ->
+        @Suppress("UNCHECKED_CAST")
+        val cb = invocation.arguments[2] as suspend (com.streamvault.data.remote.stalker.StalkerItemRecord) -> Unit
+        items.forEach { cb(it) }
+        com.streamvault.domain.model.Result.error("Bulk connection interrupted")
+    }
 }
 
 /** Counterpart to [stubStreamBulkEpg] for the per-channel streamed EPG path. */

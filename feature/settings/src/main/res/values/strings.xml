@@ -198,12 +198,14 @@
     <string name="settings_titlovi_account_value">Configure automatic Croatian, Bosnian, then Serbian subtitles</string>
     <string name="settings_titlovi_account_configured">Account saved: %1$s</string>
     <string name="settings_titlovi_password_saved_hint">The saved password is not displayed. Enter a password to update the account.</string>
-    <string name="settings_titlovi_account_subtitle">Enter your Titlovi.com account. Credentials are encrypted on this device. API access is free for 30 days after registration and later requires an eligible supporter account.</string>
+    <string name="settings_titlovi_account_subtitle">Enter your Titlovi.com account. Credentials are encrypted on this device. API access has a 30-day trial from first use and then requires an eligible supporter account.</string>
     <string name="settings_titlovi_username">Username</string>
     <string name="settings_titlovi_password">Password</string>
     <string name="settings_titlovi_remove_account">Remove account</string>
     <string name="settings_titlovi_credentials_required">Enter both the Titlovi.com username and password.</string>
     <string name="settings_titlovi_credentials_saved">Titlovi.com account saved.</string>
+    <string name="settings_titlovi_credentials_verified">Titlovi.com login verified and account saved.</string>
+    <string name="settings_titlovi_verifying">Checking Titlovi.com login…</string>
     <string name="settings_titlovi_credentials_removed">Titlovi.com account removed.</string>
     <string name="settings_titlovi_credentials_error">Could not securely save the Titlovi.com account.</string>
     <string name="settings_video_decoder_mode">Video Decoder Mode</string>

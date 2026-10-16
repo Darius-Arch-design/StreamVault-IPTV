@@ -6,6 +6,21 @@ on:
       - develop
   workflow_call:
   workflow_dispatch:
+    inputs:
+      api_level:
+        description: Run one emulator API or the full matrix.
+        type: choice
+        options:
+          - all
+          - '25'
+          - '26'
+          - '28'
+          - '32'
+          - '33'
+          - '35'
+          - '36'
+        required: false
+        default: all
 
 permissions:
   contents: read
@@ -83,6 +98,7 @@ jobs:
           test -w /dev/kvm
 
       - name: Run compatibility instrumentation suite
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.api_level == 'all' || matrix['api-level'] == inputs.api_level }}
         id: platform-smoke-run
         continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
@@ -131,3 +147,5 @@ jobs:
             app/build/reports/androidTests/
             data/build/outputs/androidTest-results/
             data/build/reports/androidTests/
+            core/ui/build/outputs/androidTest-results/
+            core/ui/build/reports/androidTests/

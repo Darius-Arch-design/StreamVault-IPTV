@@ -19,9 +19,9 @@ That means:
 
 | Build flavour | Needs its own OAuth client | Why |
 |---|---|---|
-| `master` debug, local on dev machine | yes | each developer signs with their own debug keystore (different SHA-1) |
-| Official release on Play Store | yes | Davidona's release key SHA-1 |
-| CI build | yes (or share the dev one) | depending on signing strategy |
+| Local debug | yes | package is `com.streamvault.app.debug`; each developer's debug keystore has a different SHA-1 |
+| Beta (including GitHub Actions beta APK) | yes | package is `com.streamvault.app.beta`; register the SHA-1 from the signed beta APK |
+| Official release | yes | package is `com.streamvault.app`; register the release signing key SHA-1 |
 
 The code in `data/manager/GoogleDriveBackupSyncManager.kt` never references an
 OAuth client ID — it just asks Play Services for the locally-installed client
@@ -61,9 +61,21 @@ flow to all users, see the publishing section below.
 
 | Field | Value |
 |---|---|
-| Name | `StreamVault — debug (<your handle>)` |
-| Package name | `com.streamvault.app` |
-| SHA-1 certificate fingerprint | from `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android` |
+| Name | `StreamVault — <build/channel>` |
+| Package name | exact ID from the table above |
+| SHA-1 certificate fingerprint | from the signing certificate used by that exact APK |
+
+For a beta APK, download the artifact/release APK and inspect its certificate:
+
+```sh
+$ANDROID_HOME/build-tools/<version>/apksigner verify --print-certs app-beta.apk
+```
+
+Copy the `Signer #1 certificate SHA-1 digest` into the Android OAuth client
+whose package is `com.streamvault.app.beta`. The beta workflow uses the release
+keystore when its signing secrets are configured, so do not assume its SHA-1
+matches a local debug or stable APK. Register a separate Android OAuth client
+for each different `(package name, SHA-1)` pair.
 
 Repeat the step for every signing certificate that will run the feature
 (release key, CI key, …). You don't need to copy any returned ID anywhere —
@@ -112,7 +124,7 @@ Notes:
 
 ## Verifying the setup
 
-1. Install the debug APK.
+1. Install the exact build whose package and signing certificate are registered.
 2. *Settings → Backup & Restore → Google Drive sync → Connect to Google Drive*.
 3. Pick the test user account in the system picker. The consent screen must
    ask only for the `drive.appdata` scope — if it asks for more (or fails
@@ -123,7 +135,10 @@ Notes:
 | Symptom | Likely cause |
 |---|---|
 | Sign-in dialog closes immediately, `ApiException(10)` in logcat | OAuth Android client missing or wrong SHA-1 / package name |
-| Sign-in succeeds but push/pull errors with `drive_auth_failed` | Drive API not enabled, or scope not granted in consent screen |
+| Beta reports OAuth configuration error | Register an Android OAuth client for `com.streamvault.app.beta` and the SHA-1 printed from that beta APK; then reconnect Google Drive |
+| Sign-in reports OAuth configuration error or `ApiException(10)` | Android OAuth client is missing or its package name / SHA-1 does not match this APK |
+| Push/pull reports `drive_auth_failed` | Reconnect the Google account; if it persists, verify the registered OAuth client and granted scope |
+| Push/pull reports Drive access denied | Check that the Drive API is enabled, `drive.appdata` is in consent, and a test account is in the Test users list |
 | `Google Play Services required` snackbar | Emulator built with AOSP images (no GMS). Use a "Google APIs"/"Google Play" emulator image |
 | Push works, pull says `drive_no_remote_backup` | Drive `appDataFolder` is empty for this account — push first |
 

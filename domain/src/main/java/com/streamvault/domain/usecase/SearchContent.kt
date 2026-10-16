@@ -39,10 +39,6 @@ class SearchContent @Inject constructor(
     private val searchRepository: SearchRepository,
     private val providerSyncStateReader: ProviderSyncStateReader
 ) {
-    private companion object {
-        const val SEARCH_RESPONSE_TIMEOUT_MS = 2_500L
-    }
-
     private val logger = Logger.getLogger("SearchContent")
 
     operator fun invoke(
@@ -88,7 +84,7 @@ class SearchContent @Inject constructor(
         maxResultsPerSection: Int
     ): Flow<Pair<SearchRepositoryResult, Boolean>> =
         flow {
-            val result = withTimeoutOrNull(SEARCH_RESPONSE_TIMEOUT_MS) {
+            val result = withTimeoutOrNull(searchRepository.responseTimeoutMillis(providerId)) {
                 searchRepository.searchContent(
                     providerId = providerId,
                     query = query,

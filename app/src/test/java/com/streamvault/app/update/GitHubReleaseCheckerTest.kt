@@ -13,6 +13,14 @@ import org.mockito.kotlin.whenever
 
 class GitHubReleaseCheckerTest {
     @Test
+    fun parseBetaTagCarriesMonotonicVersionCode() {
+        val parsed = GitHubReleaseChecker(mock()).parseTagVersionInfo("v1.0.19-beta.000006.01+28")
+
+        assertThat(parsed.versionName).isEqualTo("1.0.19-beta.000006.01")
+        assertThat(parsed.versionCode).isEqualTo(28)
+    }
+
+    @Test
     fun parseReleaseAssetSha256DigestAcceptsGitHubDigestShape() {
         val digest = "sha256:ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789"
 

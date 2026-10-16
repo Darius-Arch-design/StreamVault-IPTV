@@ -68,8 +68,10 @@ android {
         applicationId = "com.streamvault.app"
         minSdk = 25
         targetSdk = 36
-        versionCode = 21
+        versionCode = 22
         versionName = "1.0.19"
+        providers.gradleProperty("appVersionCode").orNull?.toIntOrNull()?.let { versionCode = it }
+        providers.gradleProperty("appVersionName").orNull?.let { versionName = it }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         providers.gradleProperty("compatApi").orNull?.let { expectedApi ->
             testInstrumentationRunnerArguments["expected_api"] = expectedApi
@@ -120,8 +122,8 @@ android {
         }
         create("beta") {
             initWith(getByName("release"))
-            applicationIdSuffix = ".beta"
-            versionNameSuffix = "-beta"
+            applicationIdSuffix = ".beta2"
+            versionNameSuffix = if (providers.gradleProperty("appVersionName").isPresent) "" else "-beta"
             buildConfigField("String", "APP_UPDATE_CHANNEL", "\"beta\"")
             buildConfigField("long", "BUILD_TIMESTAMP_UTC", "${System.currentTimeMillis()}L")
             isDebuggable = false

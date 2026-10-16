@@ -86,6 +86,12 @@ class TitloviExternalSubtitleRepository private constructor(
     @Volatile
     private var cachedToken: CachedToken? = null
 
+    override suspend fun validateAccount(username: String, password: String): Result<Unit> = runSuspendCatching {
+        require(username.isNotBlank() && password.isNotBlank()) { "Enter the Titlovi.com username and password." }
+        authenticatedToken(TitloviCredentials(username.trim(), password), forceRefresh = true)
+        Unit
+    }
+
     override suspend fun search(
         contentType: ContentType,
         title: String,
@@ -109,25 +115,34 @@ class TitloviExternalSubtitleRepository private constructor(
         val normalizedTitle = normalizeTitloviSearchTitle(title, year)
         if (normalizedTitle.isBlank()) return@runSuspendCatching emptyList()
 
-        val token = authenticatedToken(credentials)
-        val url = "${endpoints.apiBaseUrl.trimEnd('/')}/search".toHttpUrl().newBuilder()
-            .addQueryParameter("query", normalizedTitle)
-            .addQueryParameter("type", mediaType.toString())
-            .addQueryParameter("pg", "1")
-            .addQueryParameter("ignoreLangAndEpisode", "false")
-            .addQueryParameter("lang", providerLanguage)
-            .addQueryParameter("token", token.id)
-            .addQueryParameter("userid", token.userId.toString())
-            .apply {
-                if (mediaType == TITLOVI_EPISODE_TYPE) {
-                    addQueryParameter("season", "0")
-                    addQueryParameter("season", seasonNumber.toString())
-                    addQueryParameter("episode", "0")
-                    addQueryParameter("episode", episodeNumber.toString())
+        fun searchRequest(token: CachedToken): Request {
+            val url = "${endpoints.apiBaseUrl.trimEnd('/')}/search".toHttpUrl().newBuilder()
+                .addQueryParameter("query", normalizedTitle)
+                .addQueryParameter("type", mediaType.toString())
+                .addQueryParameter("pg", "1")
+                .addQueryParameter("ignoreLangAndEpisode", "false")
+                .addQueryParameter("lang", providerLanguage)
+                .addQueryParameter("token", token.id)
+                .addQueryParameter("userid", token.userId.toString())
+                .apply {
+                    if (mediaType == TITLOVI_EPISODE_TYPE) {
+                        addQueryParameter("season", "0")
+                        addQueryParameter("season", seasonNumber.toString())
+                        addQueryParameter("episode", "0")
+                        addQueryParameter("episode", episodeNumber.toString())
+                    }
                 }
-            }
-            .build()
-        val payload = executeJson(Request.Builder().url(url).titloviHeaders().get().build())
+                .build()
+            return Request.Builder().url(url).titloviHeaders().get().build()
+        }
+        val payload = try {
+            executeJson(searchRequest(authenticatedToken(credentials)), "search")
+        } catch (error: TitloviApiException) {
+            if (error.httpStatus != 401) throw error
+            // A token can be revoked before its advertised expiry. Refresh it once,
+            // without repeatedly submitting bad credentials or looping on a denied account.
+            executeJson(searchRequest(authenticatedToken(credentials, forceRefresh = true)), "search")
+        }
         val results = payload.getAsJsonArray("SubtitleResults") ?: return@runSuspendCatching emptyList()
         results
             .mapNotNull { element -> element.takeIf { it.isJsonObject }?.asJsonObject }
@@ -176,7 +191,7 @@ class TitloviExternalSubtitleRepository private constructor(
                 "Unsupported external subtitle source: ${subtitle.source}"
             }
             val descriptor = TitloviDownloadDescriptor.parse(subtitle.downloadId)
-            val cacheDirectory = File(context.cacheDir, CACHE_DIRECTORY).apply { mkdirs() }
+            val cacheDirectory = File(context.filesDir, CACHE_DIRECTORY).apply { mkdirs() }
             val target = File(
                 cacheDirectory,
                 "titlovi-${descriptor.id}-${descriptor.type}-${descriptor.season}-${descriptor.episode}-${subtitle.language}.srt"
@@ -211,10 +226,14 @@ class TitloviExternalSubtitleRepository private constructor(
         }
     }
 
-    private suspend fun authenticatedToken(credentials: TitloviCredentials): CachedToken = tokenMutex.withLock {
+    private suspend fun authenticatedToken(
+        credentials: TitloviCredentials,
+        forceRefresh: Boolean = false
+    ): CachedToken = tokenMutex.withLock {
         val fingerprint = credentials.username + ':' + credentials.password.hashCode()
         val now = System.currentTimeMillis()
         cachedToken?.takeIf { token ->
+            !forceRefresh &&
             token.credentialFingerprint == fingerprint && token.expiresAtMs - TOKEN_EXPIRY_MARGIN_MS > now
         }?.let { return@withLock it }
 
@@ -227,7 +246,7 @@ class TitloviExternalSubtitleRepository private constructor(
             .titloviHeaders()
             .post(ByteArray(0).toRequestBody(null))
             .build()
-        val payload = executeJson(request)
+        val payload = executeJson(request, "login")
         val id = payload.string("Token")?.takeIf(String::isNotBlank)
             ?: throw TitloviApiException("Titlovi.com authentication did not return a token")
         val userId = payload.int("UserId")
@@ -240,11 +259,20 @@ class TitloviExternalSubtitleRepository private constructor(
         ).also { cachedToken = it }
     }
 
-    private suspend fun executeJson(request: Request): JsonObject = withContext(Dispatchers.IO) {
+    private suspend fun executeJson(request: Request, operation: String): JsonObject = withContext(Dispatchers.IO) {
         client.newCall(request).useCancellableResponse { response ->
             if (!response.isSuccessful) {
                 if (response.code == 401 || response.code == 403) cachedToken = null
-                throw TitloviApiException("Titlovi.com request failed with HTTP ${response.code}")
+                val message = if (response.code == 401 || response.code == 403) {
+                    if (operation == "login") {
+                        "Titlovi.com rejected login (HTTP ${response.code}). Check your username, password, confirmed email and API access."
+                    } else {
+                        "Titlovi.com rejected subtitle search (HTTP ${response.code}). Check that API access is enabled for this account."
+                    }
+                } else {
+                    "Titlovi.com $operation failed with HTTP ${response.code}"
+                }
+                throw TitloviApiException(message, httpStatus = response.code)
             }
             val body = response.body?.string().orEmpty()
             if (body.isBlank()) throw TitloviApiException("Titlovi.com returned an empty response")
@@ -377,7 +405,11 @@ private data class TitloviDownloadDescriptor(
     }
 }
 
-private class TitloviApiException(message: String, cause: Throwable? = null) : Exception(message, cause)
+private class TitloviApiException(
+    message: String,
+    cause: Throwable? = null,
+    val httpStatus: Int? = null
+) : Exception(message, cause)
 
 internal fun normalizeTitloviSearchTitle(title: String, year: Int?): String {
     var normalized = title.trim()

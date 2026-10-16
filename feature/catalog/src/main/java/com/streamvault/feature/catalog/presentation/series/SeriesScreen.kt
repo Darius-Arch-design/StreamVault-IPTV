@@ -381,7 +381,7 @@ private fun SeriesVodContent(
     val freshSeries = uiState.libraryLensRows[SeriesLibraryLens.FRESH].orEmpty()
     val topRatedSeries = uiState.libraryLensRows[SeriesLibraryLens.TOP_RATED].orEmpty()
     val continueWatching = uiState.continueWatching
-    val heroSeries = freshSeries.firstOrNull() ?: topRatedSeries.firstOrNull() ?: favoriteSeries.firstOrNull()
+    val heroSeries = uiState.recommendedSeries
     val categoryByName = remember(uiState.providerCategories, uiState.categories, uiState.favoriteCategoryName) {
         buildMap<String, Category> {
             uiState.providerCategories.forEach { put(it.name, it) }
@@ -537,10 +537,8 @@ private fun SeriesVodContent(
             if (heroSeries != null) {
                 VodHeroStrip(
                         title = heroSeries.name,
-                        subtitle = heroSeries.plot?.takeIf { it.isNotBlank() }
-                            ?: heroSeries.genre
-                            ?: stringResource(R.string.series_library_lens_subtitle),
-                        actionLabel = stringResource(R.string.player_resume).substringBefore(" "),
+                        subtitle = stringResource(R.string.vod_recommended_for_you),
+                        actionLabel = stringResource(R.string.vod_hero_action_details),
                         onClick = {
                             val isLocked = isSeriesLocked(heroSeries)
                             if (isLocked) onProtectedSeriesClick(heroSeries) else onSeriesClick(heroSeries)

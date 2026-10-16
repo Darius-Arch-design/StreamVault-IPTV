@@ -98,7 +98,7 @@ class VodOverlayStateTest {
         assertThat(state.showChapterAction).isFalse()
         assertThat(state.showEpisodesAction).isFalse()
         // Keep the menu available for downloading external subtitles even when no embedded track is reported.
-        assertThat(state.showSubtitleAction).isTrue()
+        assertThat(state.showSubtitleAction).isFalse()
         assertThat(state.showAudioAction).isFalse()
         assertThat(state.showVideoQualityAction).isFalse()
         assertThat(state.showExternalPlayerAction).isFalse()
@@ -139,7 +139,7 @@ class VodOverlayStateTest {
             isCastConnected = false
         )
 
-        assertThat(state.showSubtitleAction).isFalse()
+        assertThat(state.showSubtitleAction).isTrue()
         assertThat(state.showAudioAction).isFalse()
         assertThat(state.showVideoQualityAction).isFalse()
         assertThat(state.showExternalPlayerAction).isTrue()

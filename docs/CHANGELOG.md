@@ -2,7 +2,7 @@
 
 All notable product changes are recorded in this document.
 
-## [1.0.19-beta.000018.01] - 2026-10-15 (build 40)
+## [1.0.19-beta.000025.01] - 2026-10-16 (build 47)
 
 This section summarizes the current beta; the stable 1.0.19 entry below remains the stable release notes.
 
@@ -23,6 +23,7 @@ This section summarizes the current beta; the stable 1.0.19 entry below remains 
 - Fixed Stalker title search and movie category browsing so results and categories display as expected.
 - Fixed the updater showing an already-installed package after installation.
 - Fixed About subpages opening below the app and build information.
+- Fixed Android TV navigation focus returning to Home after opening a section from the top navigation.
 
 ## [1.0.19]
 

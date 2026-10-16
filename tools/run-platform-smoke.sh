@@ -77,6 +77,14 @@ if [ "$api_level" = "36" ]; then
     "-PcompatAbi=${compat_abi}" \
     -Pandroid.testInstrumentationRunnerArguments.class=com.streamvault.core.ui.components.shell.CoreAppScreenScaffoldTest \
     --no-daemon
+
+  PLATFORM_SMOKE_ACTIVE_SUITE="com.streamvault.feature.settings.presentation.SettingsConnectedBehaviorTest"
+  export PLATFORM_SMOKE_ACTIVE_SUITE
+  ./gradlew --console=plain \
+    :feature:settings:connectedDebugAndroidTest \
+    "-PcompatAbi=${compat_abi}" \
+    -Pandroid.testInstrumentationRunnerArguments.class=com.streamvault.feature.settings.presentation.SettingsConnectedBehaviorTest \
+    --no-daemon
 fi
 
 if [ "$api_level" = "35" ] || [ "$api_level" = "36" ]; then

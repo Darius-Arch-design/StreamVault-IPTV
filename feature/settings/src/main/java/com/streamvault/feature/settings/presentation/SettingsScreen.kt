@@ -622,6 +622,7 @@ public fun SettingsScreen(
                     } else null,
                     onSearch = if (compact) (::openSettingsSearch) else null,
                     onExit = onCloseApp,
+                    navigationFocusRequester = if (compact) null else settingsNavFocusRequester,
                     searchModifier = searchButtonModifier,
                     requestedDestination = requestedDestination,
                     onSearchResultBack = ::returnToSearchResults,

@@ -45,27 +45,45 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Prepare optional signing files
+      - name: Prepare required release signing files
         shell: bash
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          BETA_KEYSTORE_BASE64: ${{ secrets.BETA_KEYSTORE_BASE64 }}
+          BETA_STORE_PASSWORD: ${{ secrets.BETA_STORE_PASSWORD }}
+          BETA_KEY_ALIAS: ${{ secrets.BETA_KEY_ALIAS }}
+          BETA_KEY_PASSWORD: ${{ secrets.BETA_KEY_PASSWORD }}
         run: |
           if [ -n "$RELEASE_KEYSTORE_BASE64" ] && [ -n "$RELEASE_STORE_PASSWORD" ] && [ -n "$RELEASE_KEY_ALIAS" ] && [ -n "$RELEASE_KEY_PASSWORD" ]; then
-            mkdir -p keystore
-            echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > keystore/release.jks
-            printf '%s\n' \
-              'storeFile=keystore/release.jks' \
-              "storePassword=$RELEASE_STORE_PASSWORD" \
-              "keyAlias=$RELEASE_KEY_ALIAS" \
-              "keyPassword=$RELEASE_KEY_PASSWORD" \
-              > keystore.properties
-            echo "Release signing files prepared."
+            SIGNING_KEYSTORE_BASE64="$RELEASE_KEYSTORE_BASE64"
+            SIGNING_STORE_PASSWORD="$RELEASE_STORE_PASSWORD"
+            SIGNING_KEY_ALIAS="$RELEASE_KEY_ALIAS"
+            SIGNING_KEY_PASSWORD="$RELEASE_KEY_PASSWORD"
+          elif [ -n "$BETA_KEYSTORE_BASE64" ] && [ -n "$BETA_STORE_PASSWORD" ] && [ -n "$BETA_KEY_ALIAS" ] && [ -n "$BETA_KEY_PASSWORD" ]; then
+            echo "Using the persistent signing key already used by the beta channel."
+            SIGNING_KEYSTORE_BASE64="$BETA_KEYSTORE_BASE64"
+            SIGNING_STORE_PASSWORD="$BETA_STORE_PASSWORD"
+            SIGNING_KEY_ALIAS="$BETA_KEY_ALIAS"
+            SIGNING_KEY_PASSWORD="$BETA_KEY_PASSWORD"
           else
-            echo "No signing secrets configured. Building unsigned release APK."
+            echo '::error::Release signing secrets are missing. Refusing to publish an unsigned APK.'
+            exit 1
           fi
+          mkdir -p keystore
+          printf '%s' "$SIGNING_KEYSTORE_BASE64" | base64 --decode > keystore/release.jks
+          printf '%s\n' \
+            'storeFile=keystore/release.jks' \
+            "storePassword=$SIGNING_STORE_PASSWORD" \
+            "keyAlias=$SIGNING_KEY_ALIAS" \
+            "keyPassword=$SIGNING_KEY_PASSWORD" \
+            > keystore.properties
+          keytool -list -keystore keystore/release.jks -storepass "$SIGNING_STORE_PASSWORD" -alias "$SIGNING_KEY_ALIAS" > /dev/null
+          keytool -exportcert -keystore keystore/release.jks -storepass "$SIGNING_STORE_PASSWORD" -alias "$SIGNING_KEY_ALIAS" \
+            | sha256sum | awk '{print toupper($1)}' > keystore/release-cert-sha256
+          echo "Persistent release signing key is ready."
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -85,6 +103,25 @@ jobs:
 
       - name: Build release APK
         run: ./gradlew --console=plain :app:assembleRelease
+
+      - name: Verify release APK signature
+        shell: bash
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -n 1)
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)
+          if [ -z "$APK_PATH" ] || [ -z "$APKSIGNER" ]; then
+            echo '::error::Release APK or apksigner was not found.'
+            exit 1
+          fi
+          VERIFY_OUTPUT=$("$APKSIGNER" verify --verbose --print-certs "$APK_PATH")
+          printf '%s\n' "$VERIFY_OUTPUT"
+          EXPECTED_CERT_SHA256=$(tr -d '[:space:]' < keystore/release-cert-sha256)
+          ACTUAL_CERT_SHA256=$(printf '%s\n' "$VERIFY_OUTPUT" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {gsub(":", "", $2); print toupper($2)}')
+          if [ -z "$ACTUAL_CERT_SHA256" ] || [ "$ACTUAL_CERT_SHA256" != "$EXPECTED_CERT_SHA256" ]; then
+            echo '::error::Release APK signature does not match the persistent signing key.'
+            exit 1
+          fi
+          echo "Release APK signature verified."
 
       - name: Prepare release artifact
         if: github.event_name == 'workflow_dispatch'

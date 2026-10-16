@@ -3,7 +3,6 @@
 <p align="center">
 	<a href="https://discord.gg/FrkumnnTz"><img src="https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the StreamVault Discord" /></a>
 	<a href="docs/CHANGELOG.md"><img src="https://img.shields.io/badge/Changelog-View-2563eb?style=for-the-badge" alt="View changelog" /></a>
-	<a href="https://github.com/Darius-Arch-design/StreamVault-IPTV/actions/workflows/master-test-apk.yml"><img src="https://img.shields.io/github/actions/workflow/status/Darius-Arch-design/StreamVault-IPTV/master-test-apk.yml?branch=master&style=for-the-badge&label=Master%20tests" alt="GitHub Actions status" /></a>
 	<a href="https://ko-fi.com/davidona"><img src="https://img.shields.io/badge/Support-Ko--fi-ff5f5f?style=for-the-badge&logo=kofi" alt="Support on Ko-fi" /></a>
 	<a href="LICENSE"><img src="https://img.shields.io/badge/License-StreamVault_OSL-0284c7?style=for-the-badge" alt="License" /></a>
 </p>
@@ -16,11 +15,16 @@ It is designed for large playlists, remote-friendly browsing, fast provider swit
 
 Built for Android TV first, StreamVault focuses on the things generic IPTV apps usually get wrong: D-pad navigation, quick channel movement, large-library organization, and a player that still feels good to use from the couch. Phone and tablet installs are also supported, but the primary UX target is TV.
 
-## Current Beta: 1.0.19-beta.000002.01
+## Current Beta: 1.0.19-beta.000027.01 (build 49; tag `v1.0.19-beta.000027.01+49`)
 
-- Faster Xtream live-catalog synchronization uses bounded parallel requests and adapts to slow or rate-limited providers.
-- Stalker catalog metadata loads in parallel with adaptive throttling so portal browsing and background synchronization stay more responsive.
-- Movies and series episodes can automatically load subtitles from Titlovi.com, trying Croatian, then Bosnian, then Serbian. Add your Titlovi.com account under **Settings → Playback → Subtitles → Titlovi.com account**; availability depends on that service and your account access. Live TV is not covered by this integration.
+- Xtream and Stalker catalog loading uses bounded parallel requests, adaptive throttling, and category fallback to improve responsiveness on large or slower portals.
+- Stalker onboarding can show a Live TV preview while the full catalog and guide continue syncing in the background; sync checkpoints support recovery after app restarts.
+- The Home dashboard recommends movies and series based on viewing activity.
+- Titlovi.com subtitles are available for movies and series episodes after configuring an eligible account under **Settings → Playback → Subtitles → Titlovi.com account**. Downloaded subtitles remain available and are reapplied after playback recovers from buffering.
+- If a movie already has embedded or burned-in captions, downloaded Titlovi.com subtitles can be switched off in the player.
+- QR-based provider setup transfers playlist details from a phone on the same local network and asks for confirmation on the phone.
+- Update settings hide the installer after the latest release is already installed. App Information opens at the top with version and build details visible.
+- Fixed D-pad Up from Movies and other content lists returning focus to the active top navigation section instead of Exit.
 - This beta is built from `develop` and uses the separate `com.streamvault.app.beta` package for testing on Android TV.
 
 Installable packages, when available, are published through the repository's GitHub Releases section, not linked directly from this README.

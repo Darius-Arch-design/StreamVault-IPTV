@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.focusProperties
@@ -81,6 +82,7 @@ data class UiDestination(
     val icon: ImageVector
 )
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun CoreAppScreenScaffold(
     currentDestinationId: String,
@@ -207,9 +209,20 @@ fun CoreAppScreenScaffold(
                         .fillMaxSize()
                         .then(
                             if (topBarVisible) {
-                                Modifier.focusProperties {
-                                    activeDestinationRequester?.let { up = it }
-                                }
+                                Modifier
+                                    .focusProperties {
+                                        activeDestinationRequester?.let { destinationRequester ->
+                                            up = destinationRequester
+                                            onExit = {
+                                                if (focusDirection == FocusDirection.Up &&
+                                                    destinationRequester.requestFocus()
+                                                ) {
+                                                    cancelFocusChange()
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .focusGroup()
                             } else {
                                 Modifier
                             }

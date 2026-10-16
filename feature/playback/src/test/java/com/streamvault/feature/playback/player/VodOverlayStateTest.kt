@@ -97,7 +97,8 @@ class VodOverlayStateTest {
         assertThat(state.isVod).isFalse()
         assertThat(state.showChapterAction).isFalse()
         assertThat(state.showEpisodesAction).isFalse()
-        assertThat(state.showSubtitleAction).isFalse()
+        // Keep the menu available for downloading external subtitles even when no embedded track is reported.
+        assertThat(state.showSubtitleAction).isTrue()
         assertThat(state.showAudioAction).isFalse()
         assertThat(state.showVideoQualityAction).isFalse()
         assertThat(state.showExternalPlayerAction).isFalse()
@@ -124,7 +125,7 @@ class VodOverlayStateTest {
     }
 
     @Test
-    fun `negative capability counts are treated as unavailable`() {
+    fun `external subtitle action stays available while unavailable audio and video actions are hidden`() {
         val state = buildVodOverlayState(
             contentType = "MOVIE",
             isCatchUpPlayback = false,

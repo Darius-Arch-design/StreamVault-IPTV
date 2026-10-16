@@ -116,7 +116,8 @@ jobs:
           VERIFY_OUTPUT=$("$APKSIGNER" verify --verbose --print-certs "$APK_PATH")
           printf '%s\n' "$VERIFY_OUTPUT"
           EXPECTED_CERT_SHA256=$(tr -d '[:space:]' < keystore/release-cert-sha256)
-          ACTUAL_CERT_SHA256=$(printf '%s\n' "$VERIFY_OUTPUT" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {gsub(":", "", $2); print toupper($2)}')
+          source tools/apksigner-cert-digest.sh
+          ACTUAL_CERT_SHA256=$(printf '%s\n' "$VERIFY_OUTPUT" | extract_apksigner_certificate_sha256)
           if [ -z "$ACTUAL_CERT_SHA256" ] || [ "$ACTUAL_CERT_SHA256" != "$EXPECTED_CERT_SHA256" ]; then
             echo '::error::Release APK signature does not match the persistent signing key.'
             exit 1

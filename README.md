@@ -15,19 +15,17 @@ It is designed for large playlists, remote-friendly browsing, fast provider swit
 
 Built for Android TV first, StreamVault focuses on the things generic IPTV apps usually get wrong: D-pad navigation, quick channel movement, large-library organization, and a player that still feels good to use from the couch. Phone and tablet installs are also supported, but the primary UX target is TV.
 
-## Current Beta: 1.0.19-beta.000027.01 (build 49; tag `v1.0.19-beta.000027.01+49`)
+## Current Stable: 1.0.19 (build 22; tag `v1.0.19`)
 
-- Xtream and Stalker catalog loading uses bounded parallel requests, adaptive throttling, and category fallback to improve responsiveness on large or slower portals.
-- Stalker onboarding can show a Live TV preview while the full catalog and guide continue syncing in the background; sync checkpoints support recovery after app restarts.
+- Xtream and Stalker catalog loading uses bounded parallel requests, adaptive throttling, and category fallback for large or slower portals.
+- Stalker onboarding can show a Live TV preview while the full catalog and guide continue syncing in the background; saved catalog checkpoints support recovery after app restarts.
 - The Home dashboard recommends movies and series based on viewing activity.
-- Titlovi.com subtitles are available for movies and series episodes after configuring an eligible account under **Settings → Playback → Subtitles → Titlovi.com account**.
+- Titlovi.com subtitle search and downloads are available for movies and series episodes after configuring an eligible account under **Settings → Playback → Subtitles → Titlovi.com account**.
 - If a movie already has embedded or burned-in captions, downloaded Titlovi.com subtitles can be switched off in the player.
 - QR-based provider setup transfers playlist details from a phone on the same local network and asks for confirmation on the phone.
-- Update settings hide the installer after the latest release is already installed. App Information opens at the top with version and build details visible.
-- Fixed D-pad Up from Movies and other content lists returning focus to the active top navigation section instead of Exit.
-- This beta is built from `develop` and uses the separate `com.streamvault.app.beta` package for testing on Android TV.
-
-Installable packages, when available, are published through the repository's GitHub Releases section, not linked directly from this README.
+- Update settings hide the installer after the latest release is installed. App Information opens at the top with version and build details visible.
+- D-pad Up from Movies and other content lists returns focus to the active top navigation section.
+- The stable release uses package `com.streamvault.app`. The beta build uses the separate package `com.streamvault.app.beta` and stores its app data separately.
 
 ## Preview
 <p align="center">
@@ -176,9 +174,9 @@ Installable packages, when available, are published through the repository's Git
 
 ## Releases
 
-Installable binary packages, when available, are distributed solely through the repository's GitHub Releases section. This README does not include direct APK download links or URL-shortener redirects.
+The current stable release is [StreamVault 1.0.19](https://github.com/Darius-Arch-design/StreamVault-IPTV/releases/tag/v1.0.19). APK files are available as assets on that GitHub Release page.
 
-Beta pre-releases are built and published from `develop`. The master branch has a separate test APK workflow. Stable releases use the manual `workflow_dispatch` workflow after the required checks pass.
+Beta pre-releases are built and published from `develop`. The master branch has a separate test APK workflow. Stable releases use the manual workflow after the required checks pass.
 
 ## Support
 

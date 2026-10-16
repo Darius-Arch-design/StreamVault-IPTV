@@ -208,6 +208,8 @@
   <string name="movie_detail_genre">Genre:</string>
   <string name="movie_detail_play">Play</string>
   <string name="movie_detail_related">More Like This</string>
+   <string name="vod_recommended_for_you">Recommended for you</string>
+   <string name="vod_hero_action_details">Details</string>
   <string name="movie_detail_release_date">Release Date:</string>
   <string name="movie_detail_resume_from">Resume from %1$s</string>
   <string name="movie_detail_trailer">Trailer</string>

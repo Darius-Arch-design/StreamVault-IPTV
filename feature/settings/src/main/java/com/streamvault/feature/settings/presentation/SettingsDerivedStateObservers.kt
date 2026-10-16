@@ -138,12 +138,14 @@ private fun observeHiddenCategoryIdsByType(
     return combine(
         preferencesRepository.getHiddenCategoryIds(providerId, ContentType.LIVE),
         preferencesRepository.getHiddenCategoryIds(providerId, ContentType.MOVIE),
-        preferencesRepository.getHiddenCategoryIds(providerId, ContentType.SERIES)
-    ) { hiddenLive, hiddenMovies, hiddenSeries ->
+        preferencesRepository.getHiddenCategoryIds(providerId, ContentType.SERIES),
+        preferencesRepository.getHiddenCategoryIds(providerId, ContentType.VOD)
+    ) { hiddenLive, hiddenMovies, hiddenSeries, hiddenVod ->
         mapOf(
             ContentType.LIVE to hiddenLive,
             ContentType.MOVIE to hiddenMovies,
-            ContentType.SERIES to hiddenSeries
+            ContentType.SERIES to hiddenSeries,
+            ContentType.VOD to hiddenVod
         )
     }
 }

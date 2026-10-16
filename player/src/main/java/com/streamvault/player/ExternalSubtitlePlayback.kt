@@ -13,8 +13,10 @@ import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.text.DefaultSubtitleParserFactory
 import androidx.media3.extractor.text.SubtitleExtractor
 import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import java.io.IOException
+import java.util.Locale
 
 internal data class ExternalSubtitlePlaybackTransition(
     val resumePositionMs: Long,
@@ -29,11 +31,63 @@ internal fun buildExternalSubtitlePlaybackTransition(
     playWhenReady = playWhenReady
 )
 
-internal fun TrackSelectionParameters.withExternalSubtitleEnabled(language: String): TrackSelectionParameters =
+internal data class ExternalSubtitleSelection(
+    val uri: Uri,
+    val language: String
+) {
+    val trackId: String = externalSubtitleTrackId(uri, language)
+}
+
+@UnstableApi
+internal class ExternalSubtitlePlaybackState {
+    var selection: ExternalSubtitleSelection? = null
+        private set
+
+    fun select(subtitleUri: Uri, language: String) {
+        val normalizedLanguage = language.trim().ifBlank { C.LANGUAGE_UNDETERMINED }
+        selection = ExternalSubtitleSelection(subtitleUri, normalizedLanguage)
+    }
+
+    fun clear() {
+        selection = null
+    }
+
+    fun clearUnlessSelected(trackId: String?) {
+        if (selection?.trackId != trackId) clear()
+    }
+
+    fun attach(
+        mainMediaSource: MediaSource,
+        dataSourceFactory: DataSource.Factory
+    ): MediaSource {
+        val selected = selection ?: return mainMediaSource
+        val subtitleSource = buildExternalSubtitleMediaSource(
+            dataSourceFactory = dataSourceFactory,
+            configuration = buildExternalSubtitleConfiguration(selected.uri, selected.language)
+        )
+        return MergingMediaSource(mainMediaSource, subtitleSource)
+    }
+}
+
+internal fun externalSubtitleTrackId(uri: Uri, language: String): String =
+    "streamvault-titlovi-${language.lowercase(Locale.ROOT)}-${Integer.toHexString(uri.toString().hashCode())}"
+
+private fun externalSubtitleTrackLabel(language: String): String {
+    val normalizedLanguage = language.trim().ifBlank { C.LANGUAGE_UNDETERMINED }
+    val locale = Locale.forLanguageTag(normalizedLanguage)
+    val displayLanguage = locale.getDisplayLanguage(Locale.getDefault())
+        .takeIf { it.isNotBlank() && !it.equals(normalizedLanguage, ignoreCase = true) }
+        ?.replaceFirstChar { character ->
+            if (character.isLowerCase()) character.titlecase(Locale.getDefault()) else character.toString()
+        }
+        ?: normalizedLanguage.uppercase(Locale.ROOT)
+    return "$displayLanguage · Titlovi.com"
+}
+
+internal fun TrackSelectionParameters.withExternalSubtitleEnabled(): TrackSelectionParameters =
     buildUpon()
         .clearOverridesOfType(C.TRACK_TYPE_TEXT)
         .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
-        .setPreferredTextLanguage(language)
         .setSelectTextByDefault(true)
         .build()
 
@@ -44,6 +98,8 @@ internal fun buildExternalSubtitleConfiguration(
     .setMimeType(MimeTypes.APPLICATION_SUBRIP)
     .setLanguage(language)
     .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+    .setId(externalSubtitleTrackId(subtitleUri, language))
+    .setLabel(externalSubtitleTrackLabel(language))
     .build()
 
 @UnstableApi

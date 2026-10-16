@@ -60,6 +60,7 @@ public fun SettingsContentPane(
     onCategoryBack: (() -> Unit)? = null,
     onSearch: (() -> Unit)? = null,
     onExit: (() -> Unit)? = null,
+    navigationFocusRequester: FocusRequester? = null,
     searchModifier: Modifier = Modifier,
     requestedDestination: SettingsSearchTarget? = null,
     onSearchResultBack: (() -> Unit)? = null,
@@ -114,6 +115,11 @@ public fun SettingsContentPane(
     val overviewScrollState = remember(overviewScrollKey) { scrollState(overviewScrollKey) }
     val activeScrollKey = settingsScrollKey(category, page)
     val activeScrollState = remember(activeScrollKey) { scrollState(activeScrollKey) }
+    LaunchedEffect(category, page, activeScrollState) {
+        if (category == SettingsCategory.ABOUT && page != null) {
+            activeScrollState.scrollToItem(0)
+        }
+    }
     LaunchedEffect(activeScrollKey, activeScrollState) {
         snapshotFlow {
             SettingsScrollPosition(
@@ -164,13 +170,12 @@ public fun SettingsContentPane(
                 val targetId = "page.${requireNotNull(page).name.lowercase()}.first"
                 val intent = focusCoordinator.next(targetId)
                 withFrameNanos { }
-                if (focusCoordinator.canApply(intent, targetId)) {
-                    pageHeaderFocus.requestFocus()
-                    withFrameNanos { }
-                    if (focusCoordinator.canApply(intent, targetId)) {
-                        focusManager.moveFocus(FocusDirection.Down)
-                    }
-                }
+                requestSettingsPageEntryFocus(
+                    page = page,
+                    pageHeaderFocus = pageHeaderFocus,
+                    focusManager = focusManager,
+                    canApplyIntent = { focusCoordinator.canApply(intent, targetId) },
+                )
             }
             page == null && lastPage != null && overviewEntryPlaced -> {
                 val targetId = "page.${lastPage!!.name.lowercase()}"
@@ -222,6 +227,7 @@ public fun SettingsContentPane(
                     onBack = headerBack,
                     onSearch = onSearch,
                     onExit = onExit,
+                    upFocusRequester = navigationFocusRequester,
                     searchModifier = searchModifier,
                     backModifier = Modifier
                         .focusRequester(pageHeaderFocus)
@@ -468,6 +474,20 @@ public fun SettingsContentPane(
                 }
             }
         }
+    }
+}
+
+internal suspend fun requestSettingsPageEntryFocus(
+    page: SettingsPage?,
+    pageHeaderFocus: FocusRequester,
+    focusManager: androidx.compose.ui.focus.FocusManager,
+    canApplyIntent: () -> Boolean,
+) {
+    if (!canApplyIntent()) return
+    pageHeaderFocus.requestFocus()
+    withFrameNanos { }
+    if (canApplyIntent() && page != SettingsPage.APP_INFO) {
+        focusManager.moveFocus(FocusDirection.Down)
     }
 }
 

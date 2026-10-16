@@ -214,6 +214,8 @@ public fun LazyListScope.settingsPlaybackSection(
         if (showTitloviCredentialsDialog) {
             TitloviCredentialsDialog(
                 initialUsername = titloviAccountName,
+                checking = viewModel.titloviCredentialsChecking.collectAsStateWithLifecycle().value,
+                error = viewModel.titloviCredentialError.collectAsStateWithLifecycle().value,
                 onDismiss = { showTitloviCredentialsDialog = false },
                 onConfirm = { username, password ->
                     if (username.isBlank() || password.isBlank()) {

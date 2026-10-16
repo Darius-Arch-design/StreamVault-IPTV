@@ -9,6 +9,7 @@ import com.streamvault.feature.settings.api.SettingsUpdateActionState
 import com.streamvault.feature.settings.api.SettingsUpdateDownloadStatus
 import com.streamvault.feature.settings.presentation.AppUpdateUiModel
 import com.streamvault.feature.settings.presentation.latestActionState
+import com.streamvault.feature.settings.presentation.shouldShowUpdateDownloadAction
 import org.junit.Test
 
 class SettingsAppUpdateModelsTest {
@@ -59,13 +60,28 @@ class SettingsAppUpdateModelsTest {
     }
 
     @Test
-    fun betaBuildAcceptsSameVersionBetaReleaseWhenPublishedLater() {
+    fun betaBuildRejectsSameVersionReleaseWhenVersionCodeMatchesInstalledApp() {
         val result = isRemoteVersionNewerForBuild(
             remoteVersionCode = 12,
-            remoteVersionName = "1.0.11-beta-deadbee",
+            remoteVersionName = "1.0.11-beta.000006.01",
             remotePublishedAt = "2026-05-14T12:30:00Z",
             currentVersionCode = 12,
-            currentVersionName = "1.0.11-beta",
+            currentVersionName = "1.0.11-beta.000005.01",
+            currentBuildTimestampUtc = 0L,
+            currentChannel = AppUpdateChannel.Beta
+        )
+
+        assertThat(result).isFalse()
+    }
+
+    @Test
+    fun betaBuildAcceptsSameBaseVersionWhenVersionCodeIncreases() {
+        val result = isRemoteVersionNewerForBuild(
+            remoteVersionCode = 13,
+            remoteVersionName = "1.0.11-beta.000006.01",
+            remotePublishedAt = "2026-05-14T12:30:00Z",
+            currentVersionCode = 12,
+            currentVersionName = "1.0.11-beta.000005.01",
             currentBuildTimestampUtc = 0L,
             currentChannel = AppUpdateChannel.Beta
         )
@@ -114,6 +130,20 @@ class SettingsAppUpdateModelsTest {
         )
 
         assertThat(update.latestActionState()).isEqualTo(SettingsUpdateActionState.INSTALL_LATEST)
+    }
+
+    @Test
+    fun cachedInstallerIsHiddenWhenLatestReleaseIsAlreadyInstalled() {
+        val update = AppUpdateUiModel(
+            latestVersionName = "1.0.12",
+            downloadUrl = "https://example.com/StreamVault.apk",
+            isUpdateAvailable = false,
+            downloadStatus = SettingsUpdateDownloadStatus.DOWNLOADED,
+            downloadedVersionName = "1.0.12"
+        )
+
+        assertThat(update.latestActionState()).isEqualTo(SettingsUpdateActionState.NONE)
+        assertThat(shouldShowUpdateDownloadAction(update)).isFalse()
     }
 
     @Test

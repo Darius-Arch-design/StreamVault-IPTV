@@ -48,13 +48,14 @@ class SettingsPreferencesContractTest {
         val preferences: SettingsPreferences = FakeSettingsPreferences()
         val categories = mock<CategoryRepository>()
         val hidden = Category(id = 11L, name = "Hidden", type = ContentType.LIVE)
+        val hiddenVod = Category(id = 17L, name = "Hidden VOD", type = ContentType.VOD)
         whenever(categories.getCategories(7L)).thenReturn(
-            flowOf(listOf(hidden, Category(id = 12L, name = "Visible")))
+            flowOf(listOf(hidden, hiddenVod, Category(id = 12L, name = "Visible")))
         )
 
         val snapshot = observeCategoryManagement(flowOf(7L), preferences, categories).first()
 
-        assertThat(snapshot.hiddenCategories).containsExactly(hidden)
+        assertThat(snapshot.hiddenCategories).containsExactly(hidden, hiddenVod).inOrder()
         assertThat(snapshot.categorySortModes).containsExactly(
             ContentType.LIVE, CategorySortMode.DEFAULT,
             ContentType.MOVIE, CategorySortMode.DEFAULT,
@@ -84,6 +85,10 @@ class SettingsPreferencesContractTest {
             flowOf(CategorySortMode.DEFAULT)
 
         override fun getHiddenCategoryIds(providerId: Long, type: ContentType): Flow<Set<Long>> =
-            flowOf(if (providerId == 7L && type == ContentType.LIVE) setOf(11L) else emptySet())
+            flowOf(when {
+                providerId == 7L && type == ContentType.LIVE -> setOf(11L)
+                providerId == 7L && type == ContentType.VOD -> setOf(17L)
+                else -> emptySet()
+            })
     }
 }

@@ -1,14 +1,26 @@
 package com.streamvault.core.ui.components.shell
 
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Surface
+import androidx.tv.material3.Text
 import org.junit.Rule
 import org.junit.Test
 import com.google.common.truth.Truth.assertThat
@@ -43,5 +55,82 @@ class CoreAppScreenScaffoldTest {
         composeRule.runOnIdle {
             assertThat(selectedDestination).isEqualTo("settings")
         }
+    }
+
+    @Test
+    fun enteringTopBarReturnsFocusToCurrentDestination() {
+        assertFocusReturnsToCurrentDestination(
+            chrome = NavigationChrome.TopBar,
+            direction = Key.DirectionUp
+        )
+    }
+
+    @Test
+    fun enteringRailReturnsFocusToCurrentDestination() {
+        assertFocusReturnsToCurrentDestination(
+            chrome = NavigationChrome.Rail,
+            direction = Key.DirectionLeft
+        )
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    private fun assertFocusReturnsToCurrentDestination(
+        chrome: NavigationChrome,
+        direction: Key
+    ) {
+        composeRule.setContent {
+            MaterialTheme {
+                CoreAppScreenScaffold(
+                    currentDestinationId = "movies",
+                    destinations = listOf(
+                        UiDestination(id = "home", label = "Home", icon = Icons.Default.Home),
+                        UiDestination(id = "movies", label = "Movies", icon = Icons.Default.Home)
+                    ),
+                    onDestinationSelected = {},
+                    title = "Movies",
+                    navigationChrome = chrome,
+                    showScreenHeader = false,
+                    topBarActions = if (chrome == NavigationChrome.TopBar) {
+                        {
+                            AppTopBarCloseAction(onClick = {}, contentDescription = "Exit app")
+                        }
+                    } else {
+                        null
+                    }
+                ) {
+                    if (chrome == NavigationChrome.TopBar) {
+                        LazyRow(modifier = Modifier.fillMaxSize().focusGroup()) {
+                            item {
+                                Surface(
+                                    onClick = {},
+                                    modifier = Modifier.testTag("content-target")
+                                ) {
+                                    Text("Movie card")
+                                }
+                            }
+                        }
+                    } else {
+                        Surface(
+                            onClick = {},
+                            modifier = Modifier.testTag("content-target")
+                        ) {
+                            Text("Content target")
+                        }
+                    }
+                }
+            }
+        }
+
+        composeRule
+            .onNodeWithTag("content-target")
+            .performSemanticsAction(SemanticsActions.RequestFocus)
+        composeRule.onNodeWithTag("content-target").assertIsFocused()
+        composeRule.onNodeWithTag("content-target").performKeyInput {
+            keyDown(direction)
+            keyUp(direction)
+        }
+        composeRule
+            .onNode(hasText("Movies") and hasClickAction())
+            .assertIsFocused()
     }
 }

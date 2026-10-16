@@ -88,6 +88,7 @@ import com.streamvault.player.PlayerTrack
 import com.streamvault.player.TrackType
 import com.streamvault.domain.model.ExternalSubtitle
 import com.streamvault.feature.playback.player.TitloviSearchUiState
+import com.streamvault.feature.playback.player.toPlayerSubtitlePickerLabel
 import com.streamvault.player.AUDIO_VIDEO_OFFSET_MAX_MS
 import com.streamvault.player.AUDIO_VIDEO_OFFSET_MIN_MS
 import java.util.Locale
@@ -389,8 +390,9 @@ fun PlayerTrackSelectionDialog(
                         }
                         items(titloviSearchUiState.results, key = { "titlovi-${it.language}-${it.id}" }) { subtitle ->
                             TrackSelectionItem(
-                                name = "${subtitle.displayLanguage}: ${subtitle.releaseName}",
+                                name = subtitle.toPlayerSubtitlePickerLabel(),
                                 isSelected = false,
+                                maxLines = 2,
                                 onClick = {
                                     if (!titloviSearchUiState.downloading) onDownloadTitlovi(subtitle)
                                 }
@@ -1397,6 +1399,7 @@ private fun TrackSelectionItem(
     isSelected: Boolean,
     onClick: () -> Unit,
     enabled: Boolean = true,
+    maxLines: Int = Int.MAX_VALUE,
     modifier: Modifier = Modifier
 ) {
     TvClickableSurface(
@@ -1420,6 +1423,8 @@ private fun TrackSelectionItem(
                     isSelected -> Primary
                     else -> Color.White
                 },
+                maxLines = maxLines,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
             if (isSelected) {

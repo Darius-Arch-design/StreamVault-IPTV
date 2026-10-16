@@ -31,14 +31,14 @@ class TitloviExternalSubtitleRepositoryTest {
     @Before
     fun setUp() {
         context = RuntimeEnvironment.getApplication()
-        context.cacheDir.resolve("external-subtitles").deleteRecursively()
+        context.filesDir.resolve("external-subtitles").deleteRecursively()
         server = MockWebServer().apply { start() }
     }
 
     @After
     fun tearDown() {
         server.shutdown()
-        context.cacheDir.resolve("external-subtitles").deleteRecursively()
+        context.filesDir.resolve("external-subtitles").deleteRecursively()
     }
 
     @Test
@@ -91,6 +91,67 @@ class TitloviExternalSubtitleRepositoryTest {
     }
 
     @Test
+    fun `account validation reports rejected login without saving credentials`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(401))
+
+        val result = repository().validateAccount("new-user", "wrong-password")
+
+        assertThat(result.isFailure).isTrue()
+        assertThat(result.exceptionOrNull()?.message).contains("rejected login (HTTP 401)")
+        assertThat(credentialsStore.getTitloviCredentials()).isEqualTo(TitloviCredentials("user", "pass"))
+        assertThat(server.takeRequest().requestUrl?.encodedPath).endsWith("/gettoken")
+    }
+
+    @Test
+    fun `search refreshes a rejected token exactly once`() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"Token":"old","UserId":42}"""))
+        server.enqueue(MockResponse().setResponseCode(401))
+        server.enqueue(MockResponse().setBody("""{"Token":"new","UserId":42}"""))
+        server.enqueue(MockResponse().setBody("""{"SubtitleResults":[]}"""))
+
+        val result = repository().search(
+            contentType = ContentType.MOVIE,
+            title = "Example",
+            year = null,
+            tmdbId = null,
+            parentTmdbId = null,
+            seasonNumber = null,
+            episodeNumber = null,
+            language = "hr"
+        )
+
+        assertThat(result.getOrThrow()).isEmpty()
+        assertThat(server.takeRequest().requestUrl?.encodedPath).endsWith("/gettoken")
+        assertThat(server.takeRequest().requestUrl?.queryParameter("token")).isEqualTo("old")
+        assertThat(server.takeRequest().requestUrl?.encodedPath).endsWith("/gettoken")
+        assertThat(server.takeRequest().requestUrl?.queryParameter("token")).isEqualTo("new")
+        assertThat(server.requestCount).isEqualTo(4)
+    }
+
+    @Test
+    fun `search reports denied API access after a fresh token`() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"Token":"old","UserId":42}"""))
+        server.enqueue(MockResponse().setResponseCode(401))
+        server.enqueue(MockResponse().setBody("""{"Token":"new","UserId":42}"""))
+        server.enqueue(MockResponse().setResponseCode(401))
+
+        val result = repository().search(
+            contentType = ContentType.MOVIE,
+            title = "Example",
+            year = null,
+            tmdbId = null,
+            parentTmdbId = null,
+            seasonNumber = null,
+            episodeNumber = null,
+            language = "hr"
+        )
+
+        assertThat(result.isFailure).isTrue()
+        assertThat(result.exceptionOrNull()?.message).contains("rejected subtitle search (HTTP 401)")
+        assertThat(server.requestCount).isEqualTo(4)
+    }
+
+    @Test
     fun `download selects matching episode and converts windows 1250 to utf8`() = runBlocking {
         val archive = zip(
             "Show.S01E01.srt" to "1\n00:00:01,000 --> 00:00:02,000\nKrivi\n",
@@ -110,6 +171,7 @@ class TitloviExternalSubtitleRepositoryTest {
         val file = repository.downloadToCache(subtitle).getOrThrow()
 
         assertThat(file.readText()).contains("Čćžšđ")
+        assertThat(file.parentFile?.parentFile).isEqualTo(context.filesDir)
         val request = server.takeRequest()
         assertThat(request.requestUrl?.queryParameter("mediaId")).isEqualTo("77")
         assertThat(request.requestUrl?.queryParameter("type")).isEqualTo("2")

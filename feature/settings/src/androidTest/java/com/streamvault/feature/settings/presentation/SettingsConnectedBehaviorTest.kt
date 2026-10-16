@@ -3,9 +3,13 @@ package com.streamvault.feature.settings.presentation
 import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -14,6 +18,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.SemanticsNodeInteraction
@@ -26,6 +33,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.isFocused
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -36,6 +44,7 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -227,6 +236,114 @@ class SettingsConnectedBehaviorTest {
             .assertIsDisplayed()
             .performSemanticsAction(SemanticsActions.OnClick)
         composeRule.runOnIdle { assertThat(backCount).isEqualTo(1) }
+    }
+
+    @Test
+    fun appInfoHeader_dpadUpReturnsToSelectedAboutCategory_notExitAction() {
+        val selectedCategoryFocus = FocusRequester()
+        val appInfoBackFocus = FocusRequester()
+        var backCount = 0
+        var exitCount = 0
+
+        composeRule.setContent {
+            StreamVaultTheme {
+                Row(modifier = Modifier.fillMaxWidth().height(420.dp)) {
+                    SettingsNavigationRail(
+                        selectedCategory = SettingsCategory.ABOUT.legacyId,
+                        focusRequester = selectedCategoryFocus,
+                        compact = false,
+                        onCategorySelected = {},
+                    )
+                    Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                        SettingsLocalHeader(
+                            title = "App information",
+                            description = "Build details, developer, and project links.",
+                            parentTitle = "About",
+                            onBack = { backCount++ },
+                            onExit = { exitCount++ },
+                            upFocusRequester = selectedCategoryFocus,
+                            backModifier = Modifier.focusRequester(appInfoBackFocus),
+                        )
+                    }
+                }
+            }
+        }
+
+        val aboutCategory = hasText("About") and isSelected()
+        composeRule.waitUntil(3_000) {
+            runCatching {
+                composeRule.onNode(aboutCategory).assertIsDisplayed()
+                composeRule.onNodeWithContentDescription("Back to About").assertIsDisplayed()
+            }.isSuccess
+        }
+        composeRule.runOnIdle { appInfoBackFocus.requestFocus() }
+        composeRule
+            .onNodeWithContentDescription("Back to About")
+            .assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionUp) }
+        composeRule.onNode(aboutCategory).assertIsFocused()
+        composeRule.runOnIdle {
+            assertThat(backCount).isEqualTo(0)
+            assertThat(exitCount).isEqualTo(0)
+        }
+    }
+
+    @Test
+    fun appInfoPageEntry_keepsBuildDetailsVisibleAtTop() {
+        val appInfoHeaderFocus = FocusRequester()
+
+        composeRule.setContent {
+            StreamVaultTheme {
+                val context = LocalContext.current
+                val focusManager = LocalFocusManager.current
+                Column(modifier = Modifier.fillMaxSize()) {
+                    SettingsLocalHeader(
+                        title = "App information",
+                        description = "Build details, developer, and project links.",
+                        parentTitle = "About",
+                        onBack = {},
+                        backModifier = Modifier.focusRequester(appInfoHeaderFocus),
+                    )
+                    LazyColumn(modifier = Modifier.weight(1f)) {
+                        settingsAboutSection(
+                            uiState = SettingsUiState(),
+                            page = SettingsPage.APP_INFO,
+                            context = context,
+                            appVersionLabel = "test version",
+                            buildVerificationLabel = "Build verification at top",
+                            onOpenUri = {},
+                            onCheckForUpdates = {},
+                            onInstallDownloadedUpdate = {},
+                            onDownloadLatestUpdate = {},
+                            onSetAutoCheckAppUpdates = {},
+                            onSetAutoDownloadAppUpdates = {},
+                            onRefreshDownloadState = {},
+                            onViewCrashReport = {},
+                            onShareCrashReport = {},
+                            onDeleteCrashReport = {},
+                        )
+                    }
+                }
+                LaunchedEffect(Unit) {
+                    delay(120)
+                    requestSettingsPageEntryFocus(
+                        page = SettingsPage.APP_INFO,
+                        pageHeaderFocus = appInfoHeaderFocus,
+                        focusManager = focusManager,
+                        canApplyIntent = { true },
+                    )
+                }
+            }
+        }
+
+        composeRule.waitUntil(3_000) {
+            runCatching {
+                composeRule.onNodeWithContentDescription("Back to About").assertIsFocused()
+                composeRule.onNodeWithText("Build verification at top").assertIsDisplayed()
+            }.isSuccess
+        }
+        composeRule.onNodeWithContentDescription("Back to About").assertIsFocused()
+        composeRule.onNodeWithText("Build verification at top").assertIsDisplayed()
     }
 
     @Test

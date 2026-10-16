@@ -3,6 +3,7 @@ package com.streamvault.app.update
 import android.app.DownloadManager
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -227,7 +228,9 @@ class AppUpdateInstaller @Inject constructor(
             val permissionRequiredState = currentState.copy(installPermissionRequired = true)
             _downloadState.value = permissionRequiredState
             return@withContext try {
-                context.startActivity(settingsIntent)
+                withContext(Dispatchers.Main.immediate) {
+                    context.startActivity(settingsIntent)
+                }
                 Result.error("Allow installs from this app, then try Install update again")
             } catch (error: ActivityNotFoundException) {
                 Result.error("Open Android settings, allow installs from this app, then try Install update again", error)
@@ -271,19 +274,27 @@ class AppUpdateInstaller @Inject constructor(
             apkFile
         )
 
-        val installIntent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(apkUri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
+        val installIntent = buildUpdateInstallIntent(INSTALL_PACKAGE_ACTION, apkUri)
 
         try {
-            context.startActivity(installIntent)
+            withContext(Dispatchers.Main.immediate) {
+                context.startActivity(installIntent)
+            }
             Result.success(Unit)
         } catch (error: ActivityNotFoundException) {
-            Result.error("No package installer is available on this device", error)
+            val fallbackIntent = buildUpdateInstallIntent(Intent.ACTION_VIEW, apkUri)
+            try {
+                withContext(Dispatchers.Main.immediate) {
+                    context.startActivity(fallbackIntent)
+                }
+                Result.success(Unit)
+            } catch (fallbackError: ActivityNotFoundException) {
+                Result.error("Android package installer is not available on this device", fallbackError)
+            } catch (fallbackError: SecurityException) {
+                Result.error("Android blocked the package installer from opening", fallbackError)
+            }
         } catch (error: SecurityException) {
-            Result.error("The package installer could not be launched", error)
+            Result.error("Android blocked the package installer from opening", error)
         }
     }
 
@@ -368,3 +379,12 @@ class AppUpdateInstaller @Inject constructor(
         }
     }
 }
+
+internal fun buildUpdateInstallIntent(action: String, apkUri: Uri): Intent = Intent(action).apply {
+    setDataAndType(apkUri, APK_MIME_TYPE)
+    clipData = ClipData.newRawUri("StreamVault update", apkUri)
+    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+}
+
+private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
+private const val INSTALL_PACKAGE_ACTION = "android.intent.action.INSTALL_PACKAGE"

@@ -190,7 +190,7 @@ class GitHubReleaseChecker @Inject constructor(
     }
 
 
-    private fun parseTagVersionInfo(rawTagName: String): ParsedTagVersion {
+    internal fun parseTagVersionInfo(rawTagName: String): ParsedTagVersion {
         val normalizedTag = rawTagName.trim()
         val structuredMatch = STRUCTURED_TAG_REGEX.matchEntire(normalizedTag)
         if (structuredMatch != null) {
@@ -249,7 +249,7 @@ enum class AppUpdateChannel(val id: String, val releaseApiUrl: String) {
     }
 }
 
-private data class ParsedTagVersion(
+internal data class ParsedTagVersion(
     val versionName: String,
     val versionCode: Int?
 )

@@ -69,6 +69,24 @@ run_compatibility_suite() {
 
 run_compatibility_suite
 
+if [ "$api_level" = "36" ]; then
+  PLATFORM_SMOKE_ACTIVE_SUITE="com.streamvault.core.ui.components.shell.CoreAppScreenScaffoldTest"
+  export PLATFORM_SMOKE_ACTIVE_SUITE
+  ./gradlew --console=plain \
+    :core:ui:connectedDebugAndroidTest \
+    "-PcompatAbi=${compat_abi}" \
+    -Pandroid.testInstrumentationRunnerArguments.class=com.streamvault.core.ui.components.shell.CoreAppScreenScaffoldTest \
+    --no-daemon
+
+  PLATFORM_SMOKE_ACTIVE_SUITE="com.streamvault.feature.settings.presentation.SettingsConnectedBehaviorTest"
+  export PLATFORM_SMOKE_ACTIVE_SUITE
+  ./gradlew --console=plain \
+    :feature:settings:connectedDebugAndroidTest \
+    "-PcompatAbi=${compat_abi}" \
+    -Pandroid.testInstrumentationRunnerArguments.class=com.streamvault.feature.settings.presentation.SettingsConnectedBehaviorTest \
+    --no-daemon
+fi
+
 if [ "$api_level" = "35" ] || [ "$api_level" = "36" ]; then
   PLATFORM_SMOKE_ACTIVE_SUITE="com.streamvault.app.service.DownloadForegroundServiceInstrumentationTest"
   export PLATFORM_SMOKE_ACTIVE_SUITE

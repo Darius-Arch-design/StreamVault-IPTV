@@ -21,6 +21,7 @@ import com.streamvault.domain.model.Series
 import com.streamvault.domain.repository.FavoriteRepository
 import com.streamvault.domain.repository.PlaybackHistoryRepository
 import com.streamvault.domain.repository.ProviderRepository
+import com.streamvault.domain.repository.SearchRepository
 import com.streamvault.domain.repository.SeriesRepository
 import com.streamvault.domain.repository.M3uClassificationRepository
 import com.streamvault.domain.usecase.ContinueWatchingResult
@@ -78,6 +79,7 @@ enum class SeriesLibraryLens {
 class SeriesViewModel @Inject constructor(
     private val providerRepository: ProviderRepository,
     private val seriesRepository: SeriesRepository,
+    private val searchRepository: SearchRepository,
     private val preferencesRepository: PreferencesRepository,
     private val playbackHistoryRepository: PlaybackHistoryRepository,
     private val favoriteRepository: FavoriteRepository,
@@ -195,6 +197,7 @@ class SeriesViewModel @Inject constructor(
                     }.combine(searchQueryForBrowse) { dependencies, query ->
                         SeriesCatalogParams(
                             providerId = provider.id,
+                            providerType = provider.type,
                             allFavorites = dependencies.allFavorites,
                             customCategories = dependencies.customCategories,
                             providerCategories = dependencies.providerCategories,
@@ -248,7 +251,17 @@ class SeriesViewModel @Inject constructor(
                             }
                         } else {
                             flow {
-                                val searchResults = seriesRepository.searchSeries(params.providerId, params.query).first()
+                                val local = seriesRepository.searchSeries(params.providerId, params.query).first()
+                                val searchResults = if (local.isEmpty() && params.providerType == ProviderType.STALKER_PORTAL) {
+                                    searchRepository.searchContent(
+                                        providerId = params.providerId,
+                                        query = params.query,
+                                        includeLive = false,
+                                        includeMovies = false,
+                                        includeSeries = true,
+                                        maxResultsPerSection = 120
+                                    ).first().series.filterNot { it.categoryId in params.hiddenCategoryIds }
+                                } else local
                                 emit(PreviewLoadResult(
                                     buildSearchCatalog(
                                         series = searchResults,
@@ -451,8 +464,8 @@ class SeriesViewModel @Inject constructor(
                     combine(
                         favoriteRepository.getAllFavorites(provider.id, ContentType.SERIES),
                         playbackHistoryRepository.getRecentlyWatchedByProvider(provider.id, limit = 24),
-                        seriesRepository.getTopRatedPreview(provider.id, VodBrowseDefaults.PREVIEW_ROW_LIMIT),
-                        seriesRepository.getFreshPreview(provider.id, VodBrowseDefaults.PREVIEW_ROW_LIMIT)
+                        seriesRepository.getTopRatedPreview(provider.id, maxOf(VodBrowseDefaults.PREVIEW_ROW_LIMIT * 4, 48)),
+                        seriesRepository.getFreshPreview(provider.id, maxOf(VodBrowseDefaults.PREVIEW_ROW_LIMIT * 4, 48))
                     ) { allFavorites, history, topRated, fresh ->
                         SeriesLibraryLensDependencies(
                             providerId = provider.id,
@@ -476,7 +489,7 @@ class SeriesViewModel @Inject constructor(
                         .map { it.contentId }
                         .take(VodBrowseDefaults.PREVIEW_ROW_LIMIT)
                         .toList()
-                    val continueIds = dependencies.history
+                    val recentlyWatchedIds = dependencies.history
                         .asSequence()
                         .filter {
                             it.contentType == ContentType.SERIES || it.contentType == ContentType.SERIES_EPISODE
@@ -484,8 +497,8 @@ class SeriesViewModel @Inject constructor(
                         .sortedByDescending { it.lastWatchedAt }
                         .distinctBy { it.seriesId ?: it.contentId }
                         .map { it.seriesId ?: it.contentId }
-                        .take(VodBrowseDefaults.PREVIEW_ROW_LIMIT)
                         .toList()
+                    val continueIds = recentlyWatchedIds.take(VodBrowseDefaults.PREVIEW_ROW_LIMIT)
 
                     val favoritePreview = if (favoriteIds.isEmpty()) {
                         emptyList()
@@ -498,14 +511,26 @@ class SeriesViewModel @Inject constructor(
                         seriesRepository.getSeriesByIds(continueIds).first().orderByIds(continueIds)
                     }.markSeriesFavorites(globalFavoriteIds)
 
+                    val recommendedSeries = buildSeriesRecommendations(
+                        candidates = (dependencies.topRated + dependencies.fresh).distinctBy { it.id },
+                        seedSeries = (favoritePreview + continuePreview).distinctBy { it.id },
+                        excludedIds = globalFavoriteIds + recentlyWatchedIds,
+                        limit = 1
+                    ).firstOrNull()
+
                     _uiState.update {
                         it.copy(
                             libraryLensRows = mapOf(
                                 SeriesLibraryLens.FAVORITES to favoritePreview,
                                 SeriesLibraryLens.CONTINUE to continuePreview,
-                                SeriesLibraryLens.TOP_RATED to dependencies.topRated.markSeriesFavorites(globalFavoriteIds),
-                                SeriesLibraryLens.FRESH to dependencies.fresh.markSeriesFavorites(globalFavoriteIds)
-                            ).filterValues { rows -> rows.isNotEmpty() }
+                                SeriesLibraryLens.TOP_RATED to dependencies.topRated
+                                    .take(VodBrowseDefaults.PREVIEW_ROW_LIMIT)
+                                    .markSeriesFavorites(globalFavoriteIds),
+                                SeriesLibraryLens.FRESH to dependencies.fresh
+                                    .take(VodBrowseDefaults.PREVIEW_ROW_LIMIT)
+                                    .markSeriesFavorites(globalFavoriteIds)
+                            ).filterValues { rows -> rows.isNotEmpty() },
+                            recommendedSeries = recommendedSeries
                         )
                     }
                 }
@@ -1370,6 +1395,7 @@ class SeriesViewModel @Inject constructor(
 
 private data class SeriesCatalogParams(
     val providerId: Long,
+    val providerType: ProviderType,
     val allFavorites: List<com.streamvault.domain.model.Favorite>,
     val customCategories: List<Category>,
     val providerCategories: List<Category>,
@@ -1454,6 +1480,7 @@ data class SeriesUiState(
     val favoriteCategoryName: String = "\u2605 Favorites",
     val fullLibraryCategoryName: String = "__full_library__",
     val libraryLensRows: Map<SeriesLibraryLens, List<Series>> = emptyMap(),
+    val recommendedSeries: Series? = null,
     val selectedCategory: String? = null,
     val selectedCategoryItems: List<Series> = emptyList(),
     val selectedCategoryLoadedCount: Int = 0,

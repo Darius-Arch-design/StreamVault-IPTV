@@ -42,8 +42,8 @@ fun isRemoteVersionNewerForBuild(
         return false
     }
 
-    if (remoteVersionCode != null && remoteVersionCode > currentVersionCode) {
-        return true
+    if (remoteVersionCode != null) {
+        return remoteVersionCode > currentVersionCode
     }
 
     val versionComparison = compareVersionNamesStatic(

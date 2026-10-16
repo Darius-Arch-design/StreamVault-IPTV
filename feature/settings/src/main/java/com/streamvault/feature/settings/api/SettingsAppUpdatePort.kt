@@ -107,7 +107,9 @@ fun latestSettingsUpdateAction(
     isUpdateAvailable: Boolean,
     downloadState: SettingsUpdateDownloadState,
 ): SettingsUpdateActionState {
-    if (latestVersionName.isNullOrBlank()) return SettingsUpdateActionState.NONE
+    if (latestVersionName.isNullOrBlank() || !isUpdateAvailable) {
+        return SettingsUpdateActionState.NONE
+    }
 
     val latestDownloaded = downloadState.status == SettingsUpdateDownloadStatus.DOWNLOADED &&
         downloadState.versionName == latestVersionName

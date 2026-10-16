@@ -2,18 +2,32 @@
 
 All notable product changes are recorded in this document.
 
-## [1.0.19]
+
+## [1.0.19] - 2026-10-16 (build 22; tag `v1.0.19`)
 
 ### Added
 
-- Added exit icon in the top navbar.
-- Added a pop up warning when trying to exit a player (Off by default, can be toggled in settings).
+- Added activity-based movie and series recommendations to the Home dashboard.
+- Added Titlovi.com subtitle search and download for movies and series episodes.
+- Added QR-based provider setup from a phone, with phone-side confirmation before transferring details.
+- Added an exit icon to the top navigation and an optional warning before leaving the player.
+
+### Improved
+
+- Improved Xtream and Stalker catalog loading with bounded parallel requests and adaptive throttling.
+- Reused the saved Stalker catalog after app restarts so it opens without requiring a manual sync.
+- Kept downloaded subtitles available and reapplied them after playback recovers from buffering.
+- Improved subtitle labels in the player menu, Android TV navigation, and provider setup feedback.
 
 ### Fixed
 
-- Fixed pressing OK in the live TV player activating the overlay back button and returning to the channel list.
-- Fixed live streams continuing to play in the background after leaving the player by returning the preview handoff to the surface it started from.
-- Fixed focused icon buttons turning fully white and hiding their icon.
+- Fixed Stalker title search and movie category browsing so results and categories display as expected.
+- Fixed the updater showing an already-installed package after installation.
+- Fixed App Information opening below the page header; it now starts at the top with build details visible.
+- Fixed Android TV D-pad Up from Movies and other content lists jumping to Exit; focus now returns to the active top-level section.
+- Fixed Live TV playback returning to the channel list when pressing OK and continuing in the background after leaving the player.
+- Fixed focused icon buttons turning fully white and hiding their icons.
+
 
 ## [1.0.18]
 
